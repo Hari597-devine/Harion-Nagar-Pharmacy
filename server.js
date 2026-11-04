@@ -302,6 +302,11 @@ const saveLocalDb = () => {
   }
 };
 
+/** GET /api/health — System health check */
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', time: new Date().toISOString(), uptime: Math.floor(process.uptime()) });
+});
+
 /** GET /api/auth/users — Public list of user accounts with password setup status */
 app.get('/api/auth/users', async (req, res) => {
   try {
