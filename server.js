@@ -414,6 +414,9 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password.' });
     }
 
+    // If user has no email registered, flag it so front-end can collect it
+    const needsEmail = !resolvedUser.email || !validator.isEmail(resolvedUser.email || '');
+
     const token = jwt.sign(
       { username: cleanUsername, email: userEmail, fullName, role },
       JWT_SECRET,
@@ -422,6 +425,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     res.json({
       token,
+      needsEmail,
       user: { username: cleanUsername, email: userEmail, fullName, role }
     });
   } catch (err) {
@@ -1599,6 +1603,79 @@ app.post('/api/users/reset-password', authenticate, adminOnly, async (req, res) 
     res.json({ success: true, message: `Password cleared. ${username} will set a new one at next login.` });
   } catch (err) {
     res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+// ============================================================
+//  CONFIG UPDATE (VAT, QR, Permissions) — Admin/Root only
+// ============================================================
+
+/** POST /api/pharmacy/config — Update system configuration */
+app.post('/api/pharmacy/config', authenticate, adminOnly, async (req, res) => {
+  try {
+    const allowed = ['name','addr','pan','prefix','vat','footer1','footer2','expiry_days',
+                     'low_stock_level','returns_enabled','discount_enabled','adj_password',
+                     'auto_print','accent','payment_qr_url','payment_qr_label'];
+    const updates = {};
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) updates[k] = req.body[k];
+    }
+    localDb.config = { ...localDb.config, ...updates };
+    saveLocalDb();
+    try { await supabase.from('config').upsert({ id: 1, ...localDb.config }, { onConflict: 'id' }); } catch(e){}
+    audit(req.user.username, `System config updated: ${Object.keys(updates).join(', ')}`);
+    res.json({ success: true, config: localDb.config });
+  } catch(err) {
+    res.status(500).json({ error: 'Config update failed.' });
+  }
+});
+
+/** PATCH /api/users/:username/role — Change user role (admin only) */
+app.patch('/api/users/:username/role', authenticate, adminOnly, async (req, res) => {
+  try {
+    const target = req.params.username.toLowerCase().trim();
+    const { role, permissions } = req.body;
+    const validRoles = ['admin', 'staff'];
+    if (!validRoles.includes(role)) return res.status(400).json({ error: 'Role must be admin or staff.' });
+    if (target === 'admin') return res.status(403).json({ error: 'Cannot change the root admin role.' });
+
+    if (localDb.users[target]) {
+      localDb.users[target].role = role;
+      if (permissions && typeof permissions === 'object') {
+        localDb.users[target].permissions = permissions;
+      }
+      saveLocalDb();
+    } else {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    try { await supabase.from('users').update({ role }).eq('username', target); } catch(e){}
+    audit(req.user.username, `Changed role of ${target} to ${role}`);
+    res.json({ success: true, username: target, role, permissions: localDb.users[target].permissions });
+  } catch(err) {
+    res.status(500).json({ error: 'Role update failed.' });
+  }
+});
+
+/** PATCH /api/users/:username/email — Save/update email for a user */
+app.patch('/api/users/:username/email', authenticate, async (req, res) => {
+  try {
+    const target = req.params.username.toLowerCase().trim();
+    // Users can only update their own email; admins can update anyone's
+    if (target !== req.user.username && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized.' });
+    }
+    const { email } = req.body;
+    if (!email || !validator.isEmail(email)) return res.status(400).json({ error: 'Valid email is required.' });
+    const cleanEmail = email.toLowerCase().trim();
+    if (localDb.users[target]) {
+      localDb.users[target].email = cleanEmail;
+      saveLocalDb();
+    }
+    try { await supabase.from('users').update({ email: cleanEmail }).eq('username', target); } catch(e){}
+    audit(req.user.username, `Updated email for ${target}`);
+    res.json({ success: true, email: cleanEmail });
+  } catch(err) {
+    res.status(500).json({ error: 'Email update failed.' });
   }
 });
 

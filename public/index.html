@@ -654,14 +654,12 @@
     let isOffline = false;
 
     // Token Management
-    const getToken = () => localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
-    const setToken = (t, persist = true) => {
-      if (persist) localStorage.setItem(TOKEN_KEY, t);
-      else sessionStorage.setItem(TOKEN_KEY, t);
-    };
+    const getToken = () => sessionStorage.getItem(TOKEN_KEY);
+    const setToken = (t) => { sessionStorage.setItem(TOKEN_KEY, t); };
     const clearToken = () => {
-      localStorage.removeItem(TOKEN_KEY);
       sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
+      localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
     };
 
@@ -829,57 +827,58 @@
       }
     }
 
-    async function initialLoad() {
-      const token = getToken();
-      let savedUser = localStorage.getItem(USER_KEY) || 'admin';
-
-      // ── INSTANT ACCESS: If token exists, ALWAYS open dashboard immediately ──
-      // Never ask to login or set password when reopening the page!
-      if (token) {
-        U = savedUser;
-        if (!S.users[U]) {
-          S.users[U] = { n: 'Administrator', role: 'admin', has_password: true };
-        }
-        render(); // Open dashboard instantly
-      } else {
-        await fetchAuthUsers();
-        return login();
-      }
-
-      // ── Background Data Fetching (Chrome, Brave & Edge Universal) ──
+    async function refreshState() {
       try {
         const st = await apiCall('/api/pharmacy/state');
         if (st.config) {
-          S.cfg = { ...DC, ...st.config };
+          S.cfg = {
+            ...DC,
+            ...st.config,
+            expiry: st.config.expiry_days ?? st.config.expiry ?? DC.expiry,
+            low: st.config.low_stock_level ?? st.config.low ?? DC.low,
+            vat: parseFloat(st.config.vat ?? DC.vat) || 0,
+            payment_qr_url: st.config.payment_qr_url || '',
+            payment_qr_label: st.config.payment_qr_label || 'Scan to Pay'
+          };
           S.seq = st.config.seq || 1;
           S.rs  = st.config.rs_counter || 1;
         }
         if (Array.isArray(st.medicines) && st.medicines.length) {
           S.med = st.medicines.map(m => ({ id: m.id, n: m.name, u: m.unit, hs: m.hs_code, mrp: parseFloat(m.mrp) || 0, vat: parseFloat(m.vat) || 0 }));
         }
-        if (Array.isArray(st.stock) && st.stock.length) {
+        if (Array.isArray(st.stock)) {
           S.stock = st.stock.map(s => ({ id: s.id, mid: s.medicine_id, n: s.medicine_name, hs: s.hs_code, u: s.unit, b: s.batch, x: s.expiry, q: s.quantity, cost: parseFloat(s.cost_price) || 0, mrp: parseFloat(s.mrp) || 0, vat: parseFloat(s.vat) || 0 }));
         }
         if (Array.isArray(st.users) && st.users.length) {
-          st.users.forEach(u => { S.users[u.username] = { n: u.full_name, email: u.email || '', role: u.role, has_password: u.has_password }; });
+          st.users.forEach(u => { S.users[u.username] = { n: u.full_name, email: u.email || '', role: u.role, has_password: u.has_password, permissions: u.permissions || {} }; });
         }
-
         try {
           const salesData = await apiCall('/api/sales');
           if (Array.isArray(salesData) && salesData.length) {
             S.sales = salesData.map(s => ({ no: s.bill_no, t: s.transaction_time || new Date(s.created_at).getTime(), u: s.username, cu: s.customer_name, pm: s.payment_mode, tot: parseFloat(s.grand_total) || 0, sub: parseFloat(s.subtotal) || 0, disc: parseFloat(s.discount) || 0, vat: parseFloat(s.tax) || 0, L: s.items || [] }));
           }
-        } catch (e) {}
-
+        } catch(e) {}
         saveLocalCache();
-        applyTheme();
-
         if (U) render();
-      } catch (err) {
-        console.warn('Background sync notice:', err.message);
-        setOfflineState(true);
+      } catch(err) {
+        console.warn('refreshState notice:', err.message);
         loadLocalCache();
         if (U) render();
+      }
+    }
+
+    async function initialLoad() {
+      const token = getToken();
+      const savedUser = sessionStorage.getItem(USER_KEY);
+      if (token && savedUser) {
+        U = savedUser;
+        render();
+        await refreshState();
+      } else {
+        clearToken();
+        U = null;
+        await fetchAuthUsers();
+        login();
       }
     }
 
@@ -972,18 +971,96 @@
         });
 
         setToken(res.token);
-        localStorage.setItem(USER_KEY, res.user.username);
+        sessionStorage.setItem(USER_KEY, res.user.username);
         U = res.user.username;
         S.users[U] = { n: res.user.fullName || U, email: res.user.email || '', role: res.user.role || 'admin', has_password: true };
 
-        toast(`Welcome back, ${res.user.fullName || U}!`);
-        render();
-        initialLoad().catch(() => {});
+        // If this is first login (no email registered), collect email before dashboard
+        if (res.needsEmail || !res.user.email || res.user.email.endsWith('@harionnagar.com')) {
+          showEmailCollectionModal(U, () => {
+            toast(`Welcome, ${res.user.fullName || U}!`);
+            fetchAndRender();
+          });
+        } else {
+          toast(`Welcome back, ${res.user.fullName || U}!`);
+          fetchAndRender();
+        }
       } catch (err) {
         if (btn) { btn.disabled = false; btn.innerHTML = 'Sign In &rarr;'; }
-        // Generic error message — avoids leaking whether username or password was wrong
         login(u, 'Invalid username or password. Please try again.');
       }
+    }
+
+    function fetchAndRender() {
+      render();
+      // Load fresh data in background after login
+      apiCall('/api/pharmacy/state').then(st => {
+        if (st.config) { S.cfg = { ...DC, ...st.config }; S.seq = st.config.seq || 1; S.rs = st.config.rs_counter || 1; }
+        if (Array.isArray(st.medicines) && st.medicines.length) S.med = st.medicines.map(m => ({ id: m.id, n: m.name, u: m.unit, hs: m.hs_code, mrp: parseFloat(m.mrp)||0, vat: parseFloat(m.vat)||0 }));
+        if (Array.isArray(st.stock) && st.stock.length) S.stock = st.stock.map(s => ({ id: s.id, mid: s.medicine_id, n: s.medicine_name, hs: s.hs_code, u: s.unit, b: s.batch, x: s.expiry, q: s.quantity, cost: parseFloat(s.cost_price)||0, mrp: parseFloat(s.mrp)||0, vat: parseFloat(s.vat)||0 }));
+        if (Array.isArray(st.users) && st.users.length) st.users.forEach(u => { S.users[u.username] = { n: u.full_name, email: u.email||'', role: u.role, has_password: u.has_password }; });
+        return apiCall('/api/sales');
+      }).then(salesData => {
+        if (Array.isArray(salesData) && salesData.length) S.sales = salesData.map(s => ({ no: s.bill_no, t: s.transaction_time || new Date(s.created_at).getTime(), u: s.username, cu: s.customer_name, pm: s.payment_mode, tot: parseFloat(s.grand_total)||0, sub: parseFloat(s.subtotal)||0, disc: parseFloat(s.discount)||0, vat: parseFloat(s.tax)||0, L: s.items||[] }));
+        saveLocalCache();
+        if (U) render();
+      }).catch(err => { console.warn('Post-login sync:', err.message); loadLocalCache(); if (U) render(); });
+    }
+
+    function showEmailCollectionModal(username, onDone) {
+      const modal = document.createElement('div');
+      modal.className = 'ov';
+      modal.innerHTML = `
+        <div class="card" style="max-width:380px;padding:28px;border-radius:16px;text-align:center;">
+          <div style="font-size:36px;margin-bottom:12px;">📧</div>
+          <h3 style="font-size:17px;font-weight:800;margin-bottom:6px;">Register Your Email</h3>
+          <p class="mu" style="font-size:13px;margin-bottom:20px;line-height:1.6;">
+            To enable <strong>password recovery</strong>, please register your Gmail address.
+            This will only be used to send a verification code if you forget your password.
+          </p>
+          <label class="f" style="margin-bottom:16px;text-align:left;">
+            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">Your Gmail Address</span>
+            <input id="email_inp" type="email" placeholder="yourname@gmail.com" autocomplete="email" style="margin-top:5px;">
+          </label>
+          <p class="err" id="email_err" style="margin-bottom:12px;min-height:18px;"></p>
+          <button id="email_save_btn" style="width:100%;height:44px;font-size:14px;font-weight:700;border-radius:10px;background:var(--ac);color:#fff;cursor:pointer;">
+            Save &amp; Continue to Dashboard &rarr;
+          </button>
+          <p style="margin-top:12px;font-size:11px;color:var(--mu);">
+            <a href="#" id="email_skip_link" style="color:var(--mu);text-decoration:underline;">Skip for now (not recommended)</a>
+          </p>
+        </div>`;
+      document.body.appendChild(modal);
+
+      const inp = modal.querySelector('#email_inp');
+      const err = modal.querySelector('#email_err');
+      const saveBtn = modal.querySelector('#email_save_btn');
+      inp.focus();
+
+      const finish = () => { modal.remove(); onDone(); };
+
+      modal.querySelector('#email_skip_link').onclick = e => { e.preventDefault(); finish(); };
+
+      saveBtn.onclick = async () => {
+        const emailVal = inp.value.trim();
+        if (!emailVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+          err.textContent = 'Please enter a valid email address.';
+          return;
+        }
+        saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+        try {
+          await apiCall('/api/users/' + encodeURIComponent(username) + '/email', {
+            method: 'PATCH',
+            body: JSON.stringify({ email: emailVal })
+          });
+          if (S.users[username]) S.users[username].email = emailVal;
+          toast('✅ Email registered! You can now reset your password by email.');
+          finish();
+        } catch(e) {
+          saveBtn.disabled = false; saveBtn.textContent = 'Save & Continue to Dashboard →';
+          err.textContent = e.message || 'Failed to save email.';
+        }
+      };
     }
 
     function showPasswordResetModal() {
@@ -1109,21 +1186,24 @@
     //  TAB NAVIGATION & CORE LAYOUT
     // ============================================================
     const TABS = () => {
-      const isAdmin = (S.users[U]?.role === 'admin') || (U === 'rd');
-      return [
-        ['sales', `${ICONS.cart} Sales`],
-        ['entry', `${ICONS.box} Stock Entry`],
-        ['stock', `${ICONS.layers} Stock`],
-        ['inv_dash', `${ICONS.chart} Graphical Dashboard`],
-        ...(S.cfg.returns || S.cfg.returns_enabled ? [['ret', `${ICONS.undo} Returns`]] : []),
-        ['adj', `${ICONS.sliders} Adjustment`],
-        ['inc', `${ICONS.dollar} Income`],
-        ...(isAdmin ? [
-          ['fin_dash', `${ICONS.ledger} Financial Ledger`],
-          ['txn', `${ICONS.list} Transactions`],
-          ['cust', `${ICONS.settings} Customize`]
-        ] : [])
-      ];
+      const uData = S.users[U] || {};
+      const isAdmin = (uData.role === 'admin') || (U === 'admin') || (U === 'rd');
+      const perms = uData.permissions || {};
+
+      const tabs = [];
+      if (isAdmin || perms.pos !== false) tabs.push(['sales', `${ICONS.cart} Sales`]);
+      if (isAdmin || perms.purchases !== false) tabs.push(['entry', `${ICONS.box} Stock Entry`]);
+      if (isAdmin || perms.stock !== false) tabs.push(['stock', `${ICONS.layers} Stock`]);
+      if (isAdmin || perms.dashboard !== false) tabs.push(['inv_dash', `${ICONS.chart} Graphical Dashboard`]);
+      if ((S.cfg.returns || S.cfg.returns_enabled) && (isAdmin || perms.returns !== false)) tabs.push(['ret', `${ICONS.undo} Returns`]);
+      if (isAdmin || perms.adj !== false) tabs.push(['adj', `${ICONS.sliders} Adjustment`]);
+      if (isAdmin || perms.income !== false) tabs.push(['inc', `${ICONS.dollar} Income`]);
+      if (isAdmin) {
+        tabs.push(['fin_dash', `${ICONS.ledger} Financial Ledger`]);
+        tabs.push(['txn', `${ICONS.list} Transactions`]);
+        tabs.push(['cust', `${ICONS.settings} Customize`]);
+      }
+      return tabs;
     };
 
     async function go(t) {
@@ -1206,7 +1286,8 @@
           if (t > 0) {
             used[s.id] = (used[s.id] || 0) + t;
             need -= t;
-            L.push({ sid: s.id, n: s.n, hs: s.hs, u: s.u, b: s.b, x: s.x, q: t, r: s.mrp, v: s.vat, c: s.cost });
+            const itemVat = (s.vat != null && s.vat > 0) ? s.vat : (parseFloat(S.cfg.vat) || 0);
+            L.push({ sid: s.id, n: s.n, hs: s.hs, u: s.u, b: s.b, x: s.x, q: t, r: s.mrp, v: itemVat, c: s.cost });
           }
         });
         if (need > 0) err.push(n + 'not enough stock for ' + m.n + ' (short by ' + need + ')');
@@ -1231,9 +1312,16 @@
           <div class="row">
             ${lab('Customer / Patient Name', fi('cu', 'e.g. Hari Kumar Yadav'), 'w')}
             ${lab('Payment Mode', `
-              <select onchange="SF.pm=this.value">
+              <select onchange="SF.pm=this.value;V.sales()">
                 ${['Cash', 'Credit', 'Card', 'Online'].map(o => `<option ${SF.pm == o ? 'selected' : ''}>${o}</option>`).join('')}
               </select>`)}
+          </div>
+          ${(SF.pm === 'Online') ? `
+            <div style="background:var(--ac-light);border:1px dashed var(--ac);border-radius:10px;padding:12px;margin:10px 0;text-align:center;">
+              <p style="font-weight:700;color:var(--ac);font-size:13px;margin-bottom:6px;">📱 ${e(S.cfg.payment_qr_label || 'Scan QR to Pay via Fonepay / eSewa')}</p>
+              ${S.cfg.payment_qr_url ? `<img src="${e(S.cfg.payment_qr_url)}" alt="Payment QR" style="max-width:180px;max-height:180px;border-radius:8px;border:1px solid var(--bd);box-shadow:0 4px 10px rgba(0,0,0,0.06);margin:auto;display:block;">` : '<p class="mu" style="font-size:12px;">(No QR uploaded yet. Admin can set QR code in Customize tab.)</p>'}
+            </div>` : ''}
+          <div class="row">
           </div>
           ${SR.map((r, i) => `
             <div class="row" style="background:var(--bg);padding:8px;border-radius:6px;margin:4px 0;">
@@ -1593,7 +1681,9 @@
             timestamp: Date.now()
           })
         });
-        await initialLoad();
+        await refreshState();
+        toast('✅ Stock purchase recorded successfully!');
+        PR = [{}]; P = {}; V.entry();
       } catch (e) {
         console.warn('Backend purchase entry failed, updating locally:', e);
         // Local fallback
@@ -2698,61 +2788,229 @@
 
     V.cust = () => {
       const g = S.cfg;
+      const isAdmin = (S.users[U]?.role === 'admin') || (U === 'admin') || (U === 'rd');
+
       $('#pg').innerHTML = `
+        <!-- 1. System Configuration & VAT -->
         <div class="card">
-          <h3>${ICONS.settings} System Administration & Customization</h3>
-          <div class="row">
-            <input id="cm" class="w" placeholder="Type setting command (e.g. set name HARION NAGAR HOSPITAL & PHARMACY or help)..." onkeydown="if(event.key=='Enter')cmd()">
-            <button onclick="cmd()">${ICONS.save} Apply Setting</button>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+            <h3 style="margin:0;">${ICONS.settings} Pharmacy Configuration &amp; VAT Rate</h3>
+            <span class="user-badge" style="background:var(--ac-light);color:var(--ac);font-weight:700;">Admin &amp; Root Controls</span>
           </div>
-          <p id="cr" class="mu" style="margin-top:6px;">Type 'help' to view the full command parameter manual.</p>
-          <div style="background:var(--bg);padding:12px;border-radius:6px;margin-top:12px;font-size:12px;" class="mono">
-            <b>Current Configuration Map:</b><br>
-            Name: ${e(g.name)} | Address: ${e(g.addr)} | PAN: ${e(g.pan)} | Prefix: ${e(g.prefix)} | Next Bill: ${S.seq} | VAT: ${g.vat}% | Low Stock: ${g.low} | Expiry Warn: ${g.expiry} days
+          <p class="mu" style="margin-bottom:16px;">
+            Set your hospital VAT % for automated bill calculation, official PAN, and receipt headers. Changes apply instantly.
+          </p>
+
+          <div class="row" style="gap:12px;flex-wrap:wrap;">
+            <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Pharmacy Name</span><input id="cfg_name" value="${e(g.name)}" style="margin-top:4px;"></label>
+            <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Address</span><input id="cfg_addr" value="${e(g.addr)}" style="margin-top:4px;"></label>
+          </div>
+          <div class="row" style="gap:12px;flex-wrap:wrap;margin-top:8px;">
+            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">PAN Number</span><input id="cfg_pan" value="${e(g.pan)}" style="margin-top:4px;width:120px;"></label>
+            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Bill Prefix</span><input id="cfg_prefix" value="${e(g.prefix)}" style="margin-top:4px;width:100px;"></label>
+            <label class="f" style="background:#f0fdfa;padding:6px 12px;border:1px solid #99f6e4;border-radius:8px;">
+              <span style="font-size:12px;font-weight:700;color:var(--ac);text-transform:uppercase;">⭐ System VAT %</span>
+              <input id="cfg_vat" type="number" min="0" max="100" step="0.01" value="${g.vat || 0}" style="margin-top:4px;width:90px;font-weight:bold;color:var(--ac);">
+            </label>
+            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Low Stock Alert</span><input id="cfg_low" type="number" min="1" value="${g.low_stock_level || g.low || 10}" style="margin-top:4px;width:90px;"></label>
+            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Expiry Alert (days)</span><input id="cfg_expiry" type="number" min="1" value="${g.expiry_days || g.expiry || 90}" style="margin-top:4px;width:90px;"></label>
+          </div>
+          <div class="row" style="gap:12px;flex-wrap:wrap;margin-top:8px;">
+            <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Receipt Footer 1</span><input id="cfg_f1" value="${e(g.footer1 || '')}" style="margin-top:4px;"></label>
+            <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Receipt Footer 2</span><input id="cfg_f2" value="${e(g.footer2 || '')}" style="margin-top:4px;"></label>
+          </div>
+          <div class="row" style="gap:16px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_returns" ${g.returns_enabled ? 'checked' : ''} style="width:16px;height:16px;"><span>Enable Returns</span></label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_discount" ${g.discount_enabled ? 'checked' : ''} style="width:16px;height:16px;"><span>Enable Bill Discount</span></label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_adjpw" ${g.adj_password ? 'checked' : ''} style="width:16px;height:16px;"><span>Adjustment Password Gate</span></label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_autoprint" ${g.auto_print ? 'checked' : ''} style="width:16px;height:16px;"><span>Auto-Print Receipts</span></label>
+          </div>
+          <p class="err" id="cfg_err" style="margin-top:10px;"></p>
+          <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
+            <button onclick="saveConfig()" style="font-weight:700;">${ICONS.save} Save System Configuration &amp; VAT</button>
+            <span id="cfg_ok" style="display:none;color:var(--ok);font-weight:600;">✓ Saved Successfully!</span>
           </div>
         </div>
 
+        <!-- 2. Online Payment QR Code -->
         <div class="card">
-          <h3>${ICONS.plus} User Management (Add Staff / Admin Accounts)</h3>
-          <p class="mu" style="margin-bottom:12px;">Create and register new staff members or administrators with granular permissions.</p>
-          <div class="row">
-            ${lab('Username (ID)', `<input id="nu_u" placeholder="e.g. rahul">`)}
-            ${lab('Full Name', `<input id="nu_n" placeholder="e.g. Rahul Sharma">`, 'w')}
-            ${lab('Role Tier', `
-              <select id="nu_r">
-                <option value="staff">Staff (Billing & Inventory)</option>
-                <option value="admin">Admin (Full System Access)</option>
-              </select>`)}
-            ${lab('Initial Password (Optional)', `<input id="nu_p" type="password" placeholder="Leave empty for 1st login prompt">`)}
-            <button onclick="addNewUser()">${ICONS.plus} Create User</button>
+          <h3>📱 Online Payment QR Code (Fonepay / eSewa / Khalti)</h3>
+          <p class="mu" style="margin-bottom:14px;">
+            Provide a QR code image link to receive digital payments from patients at billing POS.
+          </p>
+          <div class="row" style="gap:12px;flex-wrap:wrap;">
+            <label class="f w">
+              <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">QR Image Direct URL</span>
+              <input id="cfg_qr_url" value="${e(g.payment_qr_url || '')}" placeholder="https://example.com/my-fonepay-qr.png" style="margin-top:4px;">
+            </label>
+            <label class="f">
+              <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Payment Label</span>
+              <input id="cfg_qr_label" value="${e(g.payment_qr_label || 'Scan to Pay via Fonepay / eSewa')}" placeholder="Fonepay / eSewa" style="margin-top:4px;width:240px;">
+            </label>
           </div>
-          <p class="err" id="nu_err"></p>
-          <div style="margin-top:16px;">
-            <h4 style="font-size:13px;margin-bottom:8px;">Registered System Accounts:</h4>
+          ${g.payment_qr_url ? `
+            <div style="margin:12px 0;display:flex;align-items:center;gap:16px;">
+              <img src="${e(g.payment_qr_url)}" alt="QR Preview" style="width:110px;height:110px;border:2px solid var(--bd);border-radius:10px;object-fit:contain;background:#fff;padding:4px;">
+              <span class="mu" style="font-size:12px;">Active QR code preview. This QR is shown automatically when cashier selects 'Online' payment mode.</span>
+            </div>` : ''}
+          <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
+            <button onclick="saveQR()" style="font-weight:700;">${ICONS.save} Save Payment QR Code</button>
+            <span id="qr_ok" style="display:none;color:var(--ok);font-weight:600;">✓ Payment QR Saved!</span>
+          </div>
+        </div>
+
+        <!-- 3. User Role & Granular Dashboard Access Permissions -->
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+            <h3 style="margin:0;">${ICONS.lock} User Access &amp; Dashboard Permission Controls</h3>
+            <span class="mu" style="font-size:12px;">Admin &amp; Root can grant or restrict access per staff account</span>
+          </div>
+          <div style="overflow-x:auto;">
             <table>
-              <tr><th>Username</th><th>Full Name</th><th>Role</th><th>Password Status</th><th>Action</th></tr>
-              ${Object.entries(S.users).map(([u, d]) => `
-                <tr>
-                  <td class="mono"><b>${e(u)}</b></td>
+              <tr>
+                <th>Username</th><th>Full Name</th><th>Recovery Email</th><th>System Role</th>
+                <th style="text-align:center;">Sales POS</th>
+                <th style="text-align:center;">Stock View</th>
+                <th style="text-align:center;">Graphical Dashboard</th>
+                <th style="text-align:center;">Stock Entry</th>
+                <th>Actions</th>
+              </tr>
+              ${Object.entries(S.users).map(([u, d]) => {
+                const isRoot = u === 'admin';
+                const dis = isRoot ? 'disabled' : '';
+                const perm = d.permissions || {};
+                return `<tr>
+                  <td class="mono"><b>${e(u)}</b>${isRoot ? ' 👑' : ''}</td>
                   <td>${e(d.n)}</td>
-                  <td><span class="user-badge" style="background:${d.role === 'admin' ? 'var(--ac)' : 'var(--mu)'};color:#fff;">${e(d.role)}</span></td>
-                  <td>${d.has_password ? '✓ Protected' : '<span class="warn">Pending Setup</span>'}</td>
+                  <td style="font-size:11px;">${e(d.email || '—')}</td>
                   <td>
-                    <button class="g" style="padding:2px 8px;font-size:11px;" onclick="resetUserPw('${u}')">Clear Password</button>
+                    <select id="role_${u}" ${dis} style="font-size:12px;padding:3px 6px;border-radius:4px;">
+                      <option value="staff" ${d.role === 'staff' ? 'selected' : ''}>Staff</option>
+                      <option value="admin" ${d.role === 'admin' ? 'selected' : ''}>Admin</option>
+                    </select>
                   </td>
-                </tr>`).join('')}
+                  <td style="text-align:center;"><input type="checkbox" id="perm_pos_${u}" ${perm.pos !== false ? 'checked' : ''} ${dis}></td>
+                  <td style="text-align:center;"><input type="checkbox" id="perm_stock_${u}" ${perm.stock !== false ? 'checked' : ''} ${dis}></td>
+                  <td style="text-align:center;"><input type="checkbox" id="perm_dash_${u}" ${perm.dashboard !== false ? 'checked' : ''} ${dis}></td>
+                  <td style="text-align:center;"><input type="checkbox" id="perm_purch_${u}" ${perm.purchases !== false ? 'checked' : ''} ${dis}></td>
+                  <td>
+                    ${!isRoot ? `
+                      <button class="g" style="padding:3px 10px;font-size:11px;font-weight:600;" onclick="saveUserRole('${u}')">Save</button>
+                      <button class="g" style="padding:3px 8px;font-size:11px;margin-left:4px;" onclick="resetUserPw('${u}')">Reset Pwd</button>
+                    ` : '<span class="mu" style="font-size:11px;">Root Owner</span>'}
+                  </td>
+                </tr>`;
+              }).join('')}
             </table>
           </div>
         </div>
 
+        <!-- 4. Add New Staff / Admin Account -->
         <div class="card">
-          <h3>${ICONS.box} Database State Snapshot</h3>
-          <p class="mu" style="margin-bottom:8px;">All pharmacy states are stored securely in Supabase. You can also view raw JSON snapshot below.</p>
-          <button class="g" onclick="$('#bk').value=JSON.stringify(S,null,2)">View Full State JSON</button>
-          <textarea id="bk" rows="6" style="margin-top:8px;font-family:var(--mono);font-size:11px;"></textarea>
+          <h3>${ICONS.plus} Register New Staff or Admin Account</h3>
+          <div class="row" style="gap:12px;flex-wrap:wrap;">
+            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Username (ID)</span><input id="nu_u" placeholder="e.g. nurse1" style="margin-top:4px;"></label>
+            <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Full Name</span><input id="nu_n" placeholder="e.g. Sita Mahato" style="margin-top:4px;"></label>
+            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Role</span><select id="nu_r" style="margin-top:4px;"><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
+            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Initial Password (Optional)</span><input id="nu_p" type="password" placeholder="Leave empty for prompt" style="margin-top:4px;"></label>
+            <button onclick="addNewUser()" style="align-self:flex-end;">${ICONS.plus} Create User</button>
+          </div>
+          <p class="err" id="nu_err" style="margin-top:8px;"></p>
+        </div>
+
+        <!-- 5. Advanced Commands & DB Snapshot -->
+        <div class="card">
+          <h3>${ICONS.box} Advanced Management &amp; Database State</h3>
+          <div class="row">
+            <input id="cm" class="w" placeholder="Type setting command (e.g. set vat 13, set low 5, help)..." onkeydown="if(event.key==='Enter')cmd()">
+            <button onclick="cmd()">${ICONS.save} Apply Command</button>
+          </div>
+          <p id="cr" class="mu" style="margin-top:6px;font-size:12px;">Type 'help' to view the parameter manual.</p>
+          <div style="margin-top:12px;">
+            <button class="g" onclick="document.getElementById('bk').value = JSON.stringify(S, null, 2)">View Full State JSON</button>
+            <textarea id="bk" rows="6" style="margin-top:8px;font-family:var(--mono);font-size:11px;width:100%;"></textarea>
+          </div>
         </div>`;
     };
 
+    async function saveConfig() {
+      const updates = {
+        name:             document.getElementById('cfg_name')?.value.trim(),
+        addr:             document.getElementById('cfg_addr')?.value.trim(),
+        pan:              document.getElementById('cfg_pan')?.value.trim(),
+        prefix:           (document.getElementById('cfg_prefix')?.value.trim() || '').toUpperCase(),
+        vat:              parseFloat(document.getElementById('cfg_vat')?.value) || 0,
+        low_stock_level:  parseInt(document.getElementById('cfg_low')?.value, 10) || 10,
+        expiry_days:      parseInt(document.getElementById('cfg_expiry')?.value, 10) || 90,
+        footer1:          document.getElementById('cfg_f1')?.value.trim(),
+        footer2:          document.getElementById('cfg_f2')?.value.trim(),
+        returns_enabled:  document.getElementById('cfg_returns')?.checked,
+        discount_enabled: document.getElementById('cfg_discount')?.checked,
+        adj_password:     document.getElementById('cfg_adjpw')?.checked,
+        auto_print:       document.getElementById('cfg_autoprint')?.checked
+      };
+      try {
+        const res = await apiCall('/api/pharmacy/config', {
+          method: 'POST',
+          body: JSON.stringify(updates)
+        });
+        S.cfg = { ...S.cfg, ...(res.config || updates) };
+        saveLocalCache();
+        const ok = document.getElementById('cfg_ok');
+        if (ok) { ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 3000); }
+        toast('✅ System configuration & VAT saved!');
+        V.cust();
+      } catch(err) {
+        const el = document.getElementById('cfg_err');
+        if (el) el.textContent = err.message || 'Save failed.';
+      }
+    }
+
+    async function saveQR() {
+      const url   = document.getElementById('cfg_qr_url')?.value.trim() || '';
+      const label = document.getElementById('cfg_qr_label')?.value.trim() || 'Scan to Pay';
+      try {
+        await apiCall('/api/pharmacy/config', {
+          method: 'POST',
+          body: JSON.stringify({ payment_qr_url: url, payment_qr_label: label })
+        });
+        S.cfg.payment_qr_url = url;
+        S.cfg.payment_qr_label = label;
+        saveLocalCache();
+        const ok = document.getElementById('qr_ok');
+        if (ok) { ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 3000); }
+        toast('✅ Online payment QR code saved!');
+        V.cust();
+      } catch(err) {
+        toast(err.message || 'QR code save failed.');
+      }
+    }
+
+    async function saveUserRole(username) {
+      const roleEl = document.getElementById('role_' + username);
+      const role = roleEl?.value || 'staff';
+      const permissions = {
+        pos:       document.getElementById('perm_pos_' + username)?.checked !== false,
+        stock:     document.getElementById('perm_stock_' + username)?.checked !== false,
+        dashboard: document.getElementById('perm_dash_' + username)?.checked !== false,
+        purchases: document.getElementById('perm_purch_' + username)?.checked !== false
+      };
+      try {
+        await apiCall('/api/users/' + encodeURIComponent(username) + '/role', {
+          method: 'PATCH',
+          body: JSON.stringify({ role, permissions })
+        });
+        if (S.users[username]) {
+          S.users[username].role = role;
+          S.users[username].permissions = permissions;
+        }
+        saveLocalCache();
+        toast('✅ Role & permissions updated for ' + username);
+        V.cust();
+      } catch(err) {
+        toast(err.message || 'Role update failed.');
+      }
+    }
     async function addNewUser() {
       const u = ($('#nu_u')?.value || '').toLowerCase().trim();
       const n = ($('#nu_n')?.value || '').trim();
