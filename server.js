@@ -470,6 +470,18 @@ app.post('/api/auth/login', async (req, res) => {
     const role = dbUser?.role || localUser?.role || (cleanUsername === 'rd' ? 'admin' : 'staff');
     const userEmail = dbUser?.email || localUser?.email || foundEmail;
 
+    // If user is not yet known and input is an email, treat as initial first login for that email
+    if (!passwordHash && !localUser && !dbUser && validator.isEmail(inputIdentifier)) {
+      cleanUsername = inputIdentifier.split('@')[0];
+      return res.status(200).json({
+        firstLogin: true,
+        username: cleanUsername,
+        email: inputIdentifier,
+        fullName: cleanUsername.toUpperCase(),
+        role: 'staff'
+      });
+    }
+
     // First-time login: no password hash stored in DB or local store
     if (!passwordHash) {
       return res.status(200).json({
@@ -506,12 +518,20 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/set-password', async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    if (!username || typeof password !== 'string' || password.length < 4) {
+    if (!password || typeof password !== 'string' || password.length < 4) {
       return res.status(400).json({ error: 'Password must be at least 4 characters.' });
     }
 
-    const cleanUsername = username.toLowerCase().trim();
+    let cleanUsername = username ? username.toLowerCase().trim() : '';
     const cleanEmail = email && validator.isEmail(email) ? email.toLowerCase().trim() : '';
+
+    if (!cleanUsername && cleanEmail) {
+      cleanUsername = cleanEmail.split('@')[0];
+    }
+    if (!cleanUsername) {
+      cleanUsername = 'rd'; // Default to admin
+    }
+
     const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     if (localDb.users[cleanUsername]) {
@@ -551,7 +571,7 @@ app.post('/api/auth/set-password', async (req, res) => {
 
     const fullName = localDb.users[cleanUsername].full_name;
     const role = localDb.users[cleanUsername].role;
-    const userEmail = localDb.users[cleanUsername].email;
+    const userEmail = localDb.users[cleanUsername].email || cleanEmail;
 
     const token = jwt.sign(
       { username: cleanUsername, email: userEmail, fullName, role },
