@@ -199,9 +199,20 @@ CREATE INDEX IF NOT EXISTS idx_adjustments_created_at ON adjustments(created_at 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at  ON audit_logs(created_at DESC);
 
 -- ============================================================
---  ROW LEVEL SECURITY (Recommended for production)
---  Since Express uses service_role key (bypasses RLS), these
---  policies protect against direct anon-key access.
+--  ROW LEVEL SECURITY
+--  NOTE:
+--  If your backend server (.env) uses the secret "service_role" key,
+--  it automatically bypasses RLS, so RLS policies protect against direct anon access.
+--  If your backend uses the "anon" or "publishable" key (sb_publishable_...),
+--  DISABLE RLS on the tables so your API server can insert/update freely:
+--    ALTER TABLE public.medicines DISABLE ROW LEVEL SECURITY;
+--    ALTER TABLE public.stock DISABLE ROW LEVEL SECURITY;
+--    ALTER TABLE public.sales DISABLE ROW LEVEL SECURITY;
+--    ALTER TABLE public.purchases DISABLE ROW LEVEL SECURITY;
+--    ALTER TABLE public.returns DISABLE ROW LEVEL SECURITY;
+--    ALTER TABLE public.adjustments DISABLE ROW LEVEL SECURITY;
+--    ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
+--    ALTER TABLE public.config DISABLE ROW LEVEL SECURITY;
 -- ============================================================
 ALTER TABLE users        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE medicines    ENABLE ROW LEVEL SECURITY;

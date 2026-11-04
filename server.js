@@ -337,32 +337,42 @@ app.get('/api/auth/users', async (req, res) => {
   }
 });
 
-/** POST /api/auth/register — Register new account with Email, Username, Full Name, Password */
+/** POST /api/auth/register — Register new account with Email and Password */
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { username, email, full_name, password, role } = req.body;
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'Username, Email, and Password are required.' });
+    const rawEmail = (email || '').toLowerCase().trim();
+    if (!rawEmail || !validator.isEmail(rawEmail)) {
+      return res.status(400).json({ error: 'A valid email address is required.' });
     }
-    if (!validator.isEmail(email)) {
-      return res.status(400).json({ error: 'Please enter a valid email address.' });
-    }
-    if (password.length < 4) {
+    if (!password || typeof password !== 'string' || password.length < 4) {
       return res.status(400).json({ error: 'Password must be at least 4 characters long.' });
     }
 
-    const cleanUsername = username.toLowerCase().trim();
-    const cleanEmail = email.toLowerCase().trim();
-    const cleanFullName = full_name ? full_name.trim() : cleanUsername.toUpperCase();
-    const assignedRole = (role === 'admin' && cleanUsername === 'rd') ? 'admin' : (role === 'admin' ? 'admin' : 'staff');
+    const cleanEmail = rawEmail;
+    const cleanUsername = (username ? username.toLowerCase().trim() : cleanEmail.split('@')[0]).replace(/[^a-z0-9_]/g, '_') || 'user_' + Date.now().toString(36);
+    const cleanFullName = full_name ? full_name.trim() : (cleanUsername === 'rd' ? 'Ram Dular Mahato' : cleanUsername.toUpperCase());
+    
+    // First user or rd is admin; others default to admin if 0 users or staff
+    const assignedRole = role || ((Object.keys(localDb.users).length <= 2 || cleanUsername === 'rd' || cleanUsername === 'admin') ? 'admin' : 'staff');
 
-    // Check if user or email already exists in localDb
+    // Check if email already registered
     for (const [u, d] of Object.entries(localDb.users)) {
-      if (u === cleanUsername) {
-        return res.status(400).json({ error: `Username '${cleanUsername}' is already registered.` });
-      }
       if (d.email && d.email.toLowerCase() === cleanEmail) {
-        return res.status(400).json({ error: `Email '${cleanEmail}' is already registered with username '${u}'.` });
+        // If account exists but has no password, update it
+        if (!d.password_hash) {
+          const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+          d.password_hash = hash;
+          d.role = d.role || assignedRole;
+          saveLocalDb();
+          const token = jwt.sign(
+            { username: u, email: cleanEmail, fullName: d.full_name || cleanFullName, role: d.role },
+            JWT_SECRET || 'harion_fallback_secret_key_8829103948572019',
+            { expiresIn: JWT_EXPIRES }
+          );
+          return res.json({ token, user: { username: u, email: cleanEmail, fullName: d.full_name || cleanFullName, role: d.role } });
+        }
+        return res.status(400).json({ error: `Account with email '${cleanEmail}' already exists. Please sign in with your password.` });
       }
     }
 
@@ -379,26 +389,16 @@ app.post('/api/auth/register', async (req, res) => {
     };
     saveLocalDb();
 
-    // Persist to Supabase
+    // Persist to Supabase safely
     try {
       await supabase.from('users').upsert({
         username: cleanUsername,
-        email: cleanEmail,
         full_name: cleanFullName,
         role: assignedRole,
         password_hash: hash
       }, { onConflict: 'username' });
     } catch (e) {
       console.warn('Supabase register write notice:', e.message);
-      // If error is missing email column, write without email
-      try {
-        await supabase.from('users').upsert({
-          username: cleanUsername,
-          full_name: cleanFullName,
-          role: assignedRole,
-          password_hash: hash
-        }, { onConflict: 'username' });
-      } catch (e2) {}
     }
 
     const token = jwt.sign(
@@ -419,70 +419,62 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-/** POST /api/auth/login — Validate credentials (by username OR email), return JWT */
+/** POST /api/auth/login — Validate credentials (by email OR username), return JWT */
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
-    if (!username || typeof password !== 'string') {
-      return res.status(400).json({ error: 'Username/Email and password are required.' });
+    const { username, email, password } = req.body;
+    const inputRaw = (email || username || '').toLowerCase().trim();
+    if (!inputRaw || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Email / Username and password are required.' });
     }
 
-    const inputIdentifier = username.toLowerCase().trim();
+    const inputIdentifier = inputRaw;
     let cleanUsername = inputIdentifier;
     let foundEmail = '';
+    let foundUser = null;
 
-    // Check if input is email or username in localDb
+    // Check if input matches email or username in localDb
     for (const [u, d] of Object.entries(localDb.users)) {
       if (u === inputIdentifier || (d.email && d.email.toLowerCase() === inputIdentifier)) {
         cleanUsername = u;
         foundEmail = d.email || '';
+        foundUser = d;
         break;
       }
     }
 
     let dbUser = null;
     try {
-      // Query by username or email
       const { data } = await supabase
         .from('users')
-        .select('username, email, full_name, role, password_hash')
-        .or(`username.eq.${inputIdentifier},email.eq.${inputIdentifier}`)
+        .select('username, full_name, role, password_hash')
+        .eq('username', cleanUsername)
         .maybeSingle();
-      if (data) {
-        dbUser = data;
-        cleanUsername = data.username;
-        foundEmail = data.email || foundEmail;
-      }
-    } catch (e) {
-      try {
-        const { data } = await supabase
-          .from('users')
-          .select('username, full_name, role, password_hash')
-          .eq('username', cleanUsername)
-          .maybeSingle();
-        dbUser = data;
-      } catch (e2) {}
-    }
+      if (data) dbUser = data;
+    } catch (e) {}
 
-    const localUser = localDb.users[cleanUsername];
+    const localUser = foundUser || localDb.users[cleanUsername];
     const passwordHash = dbUser?.password_hash || localUser?.password_hash;
     const fullName = dbUser?.full_name || localUser?.full_name || (cleanUsername === 'rd' ? 'Ram Dular Mahato' : cleanUsername.toUpperCase());
     const role = dbUser?.role || localUser?.role || (cleanUsername === 'rd' ? 'admin' : 'staff');
-    const userEmail = dbUser?.email || localUser?.email || foundEmail;
+    const userEmail = localUser?.email || foundEmail || (validator.isEmail(inputIdentifier) ? inputIdentifier : '');
 
-    // If user is not yet known and input is an email, treat as initial first login for that email
-    if (!passwordHash && !localUser && !dbUser && validator.isEmail(inputIdentifier)) {
-      cleanUsername = inputIdentifier.split('@')[0];
-      return res.status(200).json({
-        firstLogin: true,
-        username: cleanUsername,
-        email: inputIdentifier,
-        fullName: cleanUsername.toUpperCase(),
-        role: 'staff'
-      });
+    // If user has never been created and input is an email, prompt for first setup
+    if (!passwordHash && !localUser && !dbUser) {
+      if (validator.isEmail(inputIdentifier)) {
+        cleanUsername = inputIdentifier.split('@')[0].replace(/[^a-z0-9_]/g, '_');
+        return res.status(200).json({
+          firstLogin: true,
+          username: cleanUsername,
+          email: inputIdentifier,
+          fullName: cleanUsername.toUpperCase(),
+          role: 'admin'
+        });
+      }
+      return res.status(401).json({ error: 'No account found for this email or username. Click "First Time Setup" to create your credentials.' });
     }
 
-    // First-time login: no password hash stored in DB or local store
+    // Account exists but password has not been created yet
     if (!passwordHash) {
       return res.status(200).json({
         firstLogin: true,
@@ -495,7 +487,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     const valid = await bcrypt.compare(password, passwordHash);
     if (!valid) {
-      return res.status(401).json({ error: 'Invalid credentials. Please check your username/email or password.' });
+      return res.status(401).json({ error: 'Incorrect password. If you forgot your password, please click "Forgot Password?" below.' });
     }
 
     const token = jwt.sign(
@@ -801,6 +793,18 @@ app.get('/api/pharmacy/state', authenticate, async (req, res) => {
         full_name: u.full_name || existing?.full_name || u.username.toUpperCase(),
         role: u.role || existing?.role || (u.username === 'rd' ? 'admin' : 'staff'),
         has_password: !!(u.password_hash || existing?.has_password)
+      });
+    }
+
+    // Always ensure the authenticated calling user is present in userMap
+    if (req.user && req.user.username) {
+      const existing = userMap.get(req.user.username);
+      userMap.set(req.user.username, {
+        username: req.user.username,
+        email: req.user.email || existing?.email || '',
+        full_name: req.user.fullName || existing?.full_name || req.user.username.toUpperCase(),
+        role: req.user.role || existing?.role || 'admin',
+        has_password: true
       });
     }
 

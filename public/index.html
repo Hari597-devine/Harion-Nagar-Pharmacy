@@ -673,14 +673,16 @@
 
       try {
         const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
-        if (res.status === 401) {
-          clearToken();
-          U = null;
-          login();
-          throw new Error('Session expired. Please log in again.');
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          if (res.status === 401 && !endpoint.startsWith('/api/auth/')) {
+            clearToken();
+            U = null;
+            login(null, 'Session expired. Please sign in again.');
+          }
+          throw new Error(data.error || 'Request failed');
         }
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Request failed');
         setOfflineState(false);
         return data;
       } catch (err) {
@@ -828,13 +830,30 @@
     }
 
     async function initialLoad() {
-      try {
-        const token = getToken();
-        if (!token) {
-          await fetchAuthUsers();
-          return login();
-        }
+      const token = getToken();
+      if (!token) {
+        await fetchAuthUsers();
+        return login();
+      }
 
+      let savedUser = localStorage.getItem(USER_KEY);
+      if (!savedUser && token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload && payload.username) savedUser = payload.username;
+        } catch (e) {}
+      }
+
+      // If user has a valid token, ALWAYS ensure U is set and dashboard is rendered immediately
+      if (savedUser) {
+        U = savedUser;
+        if (!S.users[U]) {
+          S.users[U] = { n: U.toUpperCase(), role: 'admin', has_password: true };
+        }
+        render();
+      }
+
+      try {
         const st = await apiCall('/api/pharmacy/state');
         if (st.config) {
           S.cfg = { ...DC, ...st.config };
@@ -844,73 +863,67 @@
         if (st.medicines) S.med = st.medicines.map(m => ({ id: m.id, n: m.name, u: m.unit, hs: m.hs_code, mrp: parseFloat(m.mrp) || 0, vat: parseFloat(m.vat) || 0 }));
         if (st.stock) S.stock = st.stock.map(s => ({ id: s.id, mid: s.medicine_id, n: s.medicine_name, hs: s.hs_code, u: s.unit, b: s.batch, x: s.expiry, q: s.quantity, cost: parseFloat(s.cost_price) || 0, mrp: parseFloat(s.mrp) || 0, vat: parseFloat(s.vat) || 0 }));
         if (st.users) {
-          S.users = {};
           st.users.forEach(u => { S.users[u.username] = { n: u.full_name, email: u.email || '', role: u.role, has_password: u.has_password }; });
         }
 
         // Fetch recent sales for immediate display
-        const salesData = await apiCall('/api/sales');
-        if (salesData) S.sales = salesData.map(s => ({ no: s.bill_no, t: s.transaction_time || new Date(s.created_at).getTime(), u: s.username, cu: s.customer_name, pm: s.payment_mode, tot: parseFloat(s.grand_total) || 0, sub: parseFloat(s.subtotal) || 0, disc: parseFloat(s.discount) || 0, vat: parseFloat(s.tax) || 0, L: s.items || [] }));
+        try {
+          const salesData = await apiCall('/api/sales');
+          if (salesData) S.sales = salesData.map(s => ({ no: s.bill_no, t: s.transaction_time || new Date(s.created_at).getTime(), u: s.username, cu: s.customer_name, pm: s.payment_mode, tot: parseFloat(s.grand_total) || 0, sub: parseFloat(s.subtotal) || 0, disc: parseFloat(s.discount) || 0, vat: parseFloat(s.tax) || 0, L: s.items || [] }));
+        } catch (e) {}
 
         saveLocalCache();
         applyTheme();
 
-        let savedUser = localStorage.getItem(USER_KEY);
-        if (!savedUser && token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            if (payload && payload.username) savedUser = payload.username;
-          } catch (e) {}
-        }
-
-        if (savedUser && S.users[savedUser]) {
-          U = savedUser;
-          render();
-        } else {
-          await fetchAuthUsers();
-          login();
-        }
+        if (U) render();
       } catch (err) {
-        console.warn('Backend unavailable, trying offline cache fallback:', err);
+        console.warn('Background sync warning:', err.message);
         setOfflineState(true);
-        if (loadLocalCache()) {
-          toast('⚠️ Offline cache loaded. Some features will sync once connected.');
-          const savedUser = localStorage.getItem(USER_KEY);
-          if (savedUser && S.users[savedUser]) {
-            U = savedUser;
-            render();
-            return;
-          }
+        loadLocalCache();
+        if (U) render();
+        else {
+          await fetchAuthUsers();
+          login(undefined, 'Could not connect to server. Check network.');
         }
-        await fetchAuthUsers();
-        login(undefined, 'Could not connect to server. Check network.');
       }
     }
 
-    let authTab = 'login'; // 'login', 'first_setup', 'forgot', 'reset'
+    let authTab = 'signin'; // 'signin', 'register', 'forgot', 'reset'
     let forgotIdentifier = '';
+    let prefillEmail = '';
 
     function setAuthTab(tab, err = '', successMsg = '') {
       authTab = tab;
       login(null, err, successMsg);
     }
 
+    function validator_isEmail(v) {
+      return typeof v === 'string' && v.includes('@') && v.includes('.');
+    }
+
     function login(k, m = '', sMsg = '') {
-      const savedUser = localStorage.getItem(USER_KEY) || Object.keys(S.users)[0] || 'rd';
-      const activeIdentifier = k || savedUser;
-      const u = S.users[activeIdentifier] || { n: activeIdentifier, email: '', role: 'admin', has_password: false };
+      const savedUser = localStorage.getItem(USER_KEY) || Object.keys(S.users)[0] || '';
+      const activeIdentifier = k || prefillEmail || savedUser;
 
       let cardContent = '';
 
-      if (authTab === 'login') {
+      if (authTab === 'signin') {
         cardContent = `
-          <div style="text-align:left;margin-bottom:16px;">
-            <h3 style="font-size:16px;font-weight:700;color:var(--tx);margin-bottom:4px;">Sign In to Dashboard</h3>
-            <p class="mu" style="font-size:12px;">Enter your Email or Username and Password to enter.</p>
+          <div style="display:flex;border-bottom:2px solid var(--bd);margin-bottom:18px;">
+            <button type="button" onclick="setAuthTab('signin')" style="flex:1;padding:10px 6px;font-weight:700;font-size:13px;border:none;background:none;border-bottom:3px solid var(--ac);color:var(--ac);cursor:pointer;">
+              Sign In
+            </button>
+            <button type="button" onclick="setAuthTab('register')" style="flex:1;padding:10px 6px;font-weight:600;font-size:13px;border:none;background:none;border-bottom:3px solid transparent;color:var(--mu);cursor:pointer;">
+              First Time / Set Password
+            </button>
+          </div>
+
+          <div style="text-align:left;margin-bottom:14px;">
+            <p class="mu" style="font-size:12px;">Sign in with your Email and Password to enter the inventory dashboard.</p>
           </div>
 
           <label class="f" style="margin-bottom:12px;">Email Address or Username
-            <input id="login_email" type="text" value="${e(u.email || activeIdentifier)}" placeholder="e.g. name@hospital.com or rd" autocomplete="username" onkeydown="if(event.key=='Enter')$('#login_pwd')?.focus()">
+            <input id="login_email" type="text" value="${e(activeIdentifier)}" placeholder="e.g. name@hospital.com or admin" autocomplete="username" onkeydown="if(event.key=='Enter')$('#login_pwd')?.focus()">
           </label>
 
           <label class="f" style="margin-bottom:8px;">Password
@@ -921,39 +934,56 @@
             <a href="#" onclick="event.preventDefault();setAuthTab('forgot')" style="font-size:12px;color:var(--ac);text-decoration:none;font-weight:600;">Forgot Password?</a>
           </div>
 
-          ${sMsg ? `<p style="color:#059669;background:#ecfdf5;padding:10px;border-radius:8px;font-size:12px;margin-bottom:12px;border:1px solid #a7f3d0;">${e(sMsg)}</p>` : ''}
+          ${sMsg ? `<p style="color:#059669;background:#ecfdf5;padding:10px;border-radius:8px;font-size:12px;margin-bottom:12px;border:1px solid #a7f3d0;">${sMsg}</p>` : ''}
           <p class="err" id="le" style="margin-bottom:10px;">${e(m)}</p>
 
           <button id="btn_signin" style="width:100%;height:44px;font-size:14px;font-weight:700;border-radius:10px;background:var(--ac);color:#fff;" onclick="doSignIn()">
             Sign In &amp; Enter Dashboard &rarr;
           </button>
+
+          <div style="text-align:center;margin-top:16px;">
+            <span style="font-size:12px;color:var(--mu);">First time here? </span>
+            <a href="#" onclick="event.preventDefault();setAuthTab('register')" style="font-size:12px;color:var(--ac);text-decoration:none;font-weight:600;">Set your password here &rarr;</a>
+          </div>
         `;
-      } else if (authTab === 'first_setup') {
+      } else if (authTab === 'register') {
         cardContent = `
-          <div style="text-align:left;margin-bottom:16px;">
-            <h3 style="font-size:16px;font-weight:700;color:var(--tx);margin-bottom:4px;">Welcome! Set Your Credentials</h3>
-            <p class="mu" style="font-size:12px;">First login: Enter your email (for password recovery) and create a password.</p>
+          <div style="display:flex;border-bottom:2px solid var(--bd);margin-bottom:18px;">
+            <button type="button" onclick="setAuthTab('signin')" style="flex:1;padding:10px 6px;font-weight:600;font-size:13px;border:none;background:none;border-bottom:3px solid transparent;color:var(--mu);cursor:pointer;">
+              Sign In
+            </button>
+            <button type="button" onclick="setAuthTab('register')" style="flex:1;padding:10px 6px;font-weight:700;font-size:13px;border:none;background:none;border-bottom:3px solid var(--ac);color:var(--ac);cursor:pointer;">
+              First Time / Set Password
+            </button>
           </div>
 
-          <label class="f" style="margin-bottom:10px;">Your Email (For verification &amp; recovery) <span style="color:var(--ac);">*</span>
-            <input id="setup_email" type="email" value="${e(u.email || (validator_isEmail(activeIdentifier) ? activeIdentifier : ''))}" placeholder="you@hospital.com" autocomplete="email">
+          <div style="text-align:left;margin-bottom:14px;">
+            <p class="mu" style="font-size:12px;">First time logging in: Give your Email and create your Password to enter.</p>
+          </div>
+
+          <label class="f" style="margin-bottom:10px;">Your Email Address <span style="color:var(--ac);">*</span>
+            <input id="reg_email" type="email" value="${e(validator_isEmail(activeIdentifier) ? activeIdentifier : '')}" placeholder="you@hospital.com" autocomplete="email" onkeydown="if(event.key=='Enter')$('#reg_pwd1')?.focus()">
+            <small style="color:var(--mu);font-size:11px;">Used to verify and recover your password if forgotten.</small>
           </label>
 
           <label class="f" style="margin-bottom:10px;">Create Password (Min 4 characters) <span style="color:var(--ac);">*</span>
-            <input id="setup_p1" type="password" placeholder="••••••••" onkeydown="if(event.key=='Enter')$('#setup_p2')?.focus()">
+            <input id="reg_pwd1" type="password" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key=='Enter')$('#reg_pwd2')?.focus()">
           </label>
 
           <label class="f" style="margin-bottom:12px;">Confirm Password <span style="color:var(--ac);">*</span>
-            <input id="setup_p2" type="password" placeholder="••••••••" onkeydown="if(event.key=='Enter')doFirstSetup('${activeIdentifier}')">
+            <input id="reg_pwd2" type="password" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key=='Enter')doRegister()">
           </label>
 
+          ${sMsg ? `<p style="color:#059669;background:#ecfdf5;padding:10px;border-radius:8px;font-size:12px;margin-bottom:12px;border:1px solid #a7f3d0;">${sMsg}</p>` : ''}
           <p class="err" id="le" style="margin-bottom:10px;">${e(m)}</p>
 
-          <button style="width:100%;height:44px;font-size:14px;font-weight:700;border-radius:10px;background:var(--ac);color:#fff;" onclick="doFirstSetup('${activeIdentifier}')">
-            Save Credentials &amp; Enter Dashboard
+          <button id="btn_register" style="width:100%;height:44px;font-size:14px;font-weight:700;border-radius:10px;background:var(--ac);color:#fff;" onclick="doRegister()">
+            Save Credentials &amp; Enter Dashboard &rarr;
           </button>
-          <div style="text-align:center;margin-top:12px;">
-            <a href="#" onclick="event.preventDefault();setAuthTab('login')" style="font-size:12px;color:var(--mu);text-decoration:none;">&larr; Back to <span style="color:var(--ac);font-weight:600;">Sign In</span></a>
+
+          <div style="text-align:center;margin-top:16px;">
+            <span style="font-size:12px;color:var(--mu);">Already set your password? </span>
+            <a href="#" onclick="event.preventDefault();setAuthTab('signin')" style="font-size:12px;color:var(--ac);text-decoration:none;font-weight:600;">Sign In &rarr;</a>
           </div>
         `;
       } else if (authTab === 'forgot') {
@@ -964,23 +994,18 @@
           </div>
 
           <label class="f" style="margin-bottom:12px;">Registered Email Address
-            <input id="forgot_id" type="email" placeholder="you@hospital.com" value="${e(forgotIdentifier || u.email || '')}" onkeydown="if(event.key=='Enter')sendForgotOtp()">
+            <input id="forgot_id" type="email" placeholder="you@hospital.com" value="${e(forgotIdentifier || (validator_isEmail(activeIdentifier) ? activeIdentifier : ''))}" onkeydown="if(event.key=='Enter')sendForgotOtp()">
           </label>
 
-          <div id="forgot_email_wrapper" style="display:none;margin-bottom:12px;">
-            <label class="f">Enter Recovery Email
-              <input id="forgot_bind_email" type="email" placeholder="you@hospital.com">
-            </label>
-          </div>
-
+          ${sMsg ? `<p style="color:#059669;background:#ecfdf5;padding:10px;border-radius:8px;font-size:12px;margin-bottom:12px;border:1px solid #a7f3d0;">${sMsg}</p>` : ''}
           <p class="err" id="le" style="margin-bottom:10px;">${e(m)}</p>
 
           <button id="forgot_btn" style="width:100%;height:44px;font-size:14px;font-weight:700;border-radius:10px;background:var(--ac);color:#fff;" onclick="sendForgotOtp()">
             Send Verification Code
           </button>
 
-          <div style="text-align:center;margin-top:14px;">
-            <a href="#" onclick="event.preventDefault();setAuthTab('login')" style="font-size:12px;color:var(--mu);text-decoration:none;">&larr; Back to <span style="color:var(--ac);font-weight:600;">Sign In</span></a>
+          <div style="text-align:center;margin-top:16px;">
+            <a href="#" onclick="event.preventDefault();setAuthTab('signin')" style="font-size:12px;color:var(--mu);text-decoration:none;">&larr; Back to <span style="color:var(--ac);font-weight:600;">Sign In</span></a>
           </div>
         `;
       } else if (authTab === 'reset') {
@@ -992,7 +1017,7 @@
 
           ${sMsg ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:10px;border-radius:8px;font-size:12px;margin-bottom:12px;text-align:center;">${sMsg}</div>` : ''}
 
-          <label class="f" style="margin-bottom:10px;">Email / User
+          <label class="f" style="margin-bottom:10px;">Email Address
             <input id="reset_id" type="text" value="${e(forgotIdentifier || activeIdentifier)}" readonly style="background:var(--bg);color:var(--mu);">
           </label>
 
@@ -1000,7 +1025,7 @@
             <input id="reset_otp" type="text" maxlength="6" placeholder="123456" style="letter-spacing:4px;font-size:18px;font-weight:bold;text-align:center;">
           </label>
 
-          <label class="f" style="margin-bottom:10px;">New Password
+          <label class="f" style="margin-bottom:10px;">New Password (Min 4 chars)
             <input id="reset_p1" type="password" placeholder="••••••••">
           </label>
 
@@ -1016,39 +1041,36 @@
 
           <div style="display:flex;justify-content:space-between;margin-top:14px;">
             <a href="#" onclick="event.preventDefault();setAuthTab('forgot')" style="font-size:12px;color:var(--ac);text-decoration:none;">Resend Code</a>
-            <a href="#" onclick="event.preventDefault();setAuthTab('login')" style="font-size:12px;color:var(--mu);text-decoration:none;">Cancel &amp; Sign In</a>
+            <a href="#" onclick="event.preventDefault();setAuthTab('signin')" style="font-size:12px;color:var(--mu);text-decoration:none;">Cancel &amp; Sign In</a>
           </div>
         `;
       }
 
       $('#app').innerHTML = `
-        <div class="card" style="max-width:380px;margin:8vh auto;padding:28px 24px;box-shadow:0 12px 30px -8px rgba(0,0,0,0.12),0 4px 6px -2px rgba(0,0,0,0.05);border-radius:16px;">
-          <div style="text-align:center;margin-bottom:20px;">
+        <div class="card" style="max-width:390px;margin:8vh auto;padding:28px 24px;box-shadow:0 12px 30px -8px rgba(0,0,0,0.12),0 4px 6px -2px rgba(0,0,0,0.05);border-radius:16px;">
+          <div style="text-align:center;margin-bottom:18px;">
             <div style="display:inline-flex;padding:12px;background:var(--ac-light);color:var(--ac);border-radius:14px;margin-bottom:8px;">
               ${ICONS.box}
             </div>
-            <h2 style="font-size:18px;font-weight:800;letter-spacing:-0.02em;">${e(S.cfg.name)}</h2>
-            <p class="mu" style="font-size:12px;margin-top:2px;">Sasapur, Harion-4, Sarlahi &bull; Hospital &amp; Pharmacy</p>
+            <h2 style="font-size:17px;font-weight:800;letter-spacing:-0.02em;">${e(S.cfg.name)}</h2>
+            <p class="mu" style="font-size:12px;margin-top:2px;">Harion-4, Sasapur, Sarlahi &bull; Hospital &amp; Pharmacy</p>
           </div>
           ${cardContent}
         </div>`;
 
       setTimeout(() => {
-        if (authTab === 'login') {
+        if (authTab === 'signin') {
           if ($('#login_email')?.value) $('#login_pwd')?.focus();
           else $('#login_email')?.focus();
-        } else if (authTab === 'first_setup') {
-          $('#setup_p1')?.focus();
+        } else if (authTab === 'register') {
+          if ($('#reg_email')?.value) $('#reg_pwd1')?.focus();
+          else $('#reg_email')?.focus();
         } else if (authTab === 'forgot') {
           $('#forgot_id')?.focus();
         } else if (authTab === 'reset') {
           $('#reset_otp')?.focus();
         }
       }, 50);
-    }
-
-    function validator_isEmail(v) {
-      return typeof v === 'string' && v.includes('@') && v.includes('.');
     }
 
     async function doSignIn() {
@@ -1068,68 +1090,65 @@
         });
 
         if (res.firstLogin) {
-          // If password has not yet been set for this account
-          authTab = 'first_setup';
-          return login(res.username || emailOrUser, 'Welcome! Please choose a password and confirm your email.');
+          prefillEmail = res.email || emailOrUser;
+          authTab = 'register';
+          return login(res.username || emailOrUser, 'First login detected! Please choose your password and confirm it below.');
         }
 
         setToken(res.token);
         localStorage.setItem(USER_KEY, res.user.username);
         U = res.user.username;
-        // Ensure user is in the local state
-        if (!S.users[U]) {
-          S.users[U] = { n: res.user.fullName || U, email: res.user.email || '', role: res.user.role || 'staff', has_password: true };
-        }
-        toast(`Welcome, ${res.user.fullName || res.user.username}!`);
+        S.users[U] = { n: res.user.fullName || U, email: res.user.email || '', role: res.user.role || 'admin', has_password: true };
+
+        toast(`Welcome back, ${res.user.fullName || res.user.username}!`);
         render();
-        try { await initialLoad(); } catch (e) { console.warn('Post-login state load:', e.message); }
+        initialLoad().catch(() => {});
       } catch (err) {
         if (btn) { btn.disabled = false; btn.innerHTML = 'Sign In &amp; Enter Dashboard &rarr;'; }
         login(emailOrUser, err.message);
       }
     }
 
-    async function doFirstSetup(k) {
-      const email = $('#setup_email')?.value.trim();
-      const p1 = $('#setup_p1')?.value;
-      const p2 = $('#setup_p2')?.value;
+    async function doRegister() {
+      const email = $('#reg_email')?.value.trim();
+      const p1 = $('#reg_pwd1')?.value;
+      const p2 = $('#reg_pwd2')?.value;
 
       if (!email || !validator_isEmail(email)) {
-        return login(k, 'Please enter a valid recovery email address.');
+        return login(null, 'Please enter a valid recovery email address.');
       }
       if (!p1 || p1.length < 4) {
-        return login(k, 'Password must be at least 4 characters long.');
+        return login(email, 'Password must be at least 4 characters long.');
       }
       if (p1 !== p2) {
-        return login(k, 'Passwords do not match.');
+        return login(email, 'Passwords do not match. Please verify both passwords.');
       }
 
+      const btn = $('#btn_register');
+      if (btn) { btn.disabled = true; btn.textContent = 'Setting up account & entering...'; }
+
       try {
-        const res = await apiCall('/api/auth/set-password', {
+        const res = await apiCall('/api/auth/register', {
           method: 'POST',
-          body: JSON.stringify({ username: k, email, password: p1 })
+          body: JSON.stringify({ email, password: p1 })
         });
 
         setToken(res.token);
         localStorage.setItem(USER_KEY, res.user.username);
         U = res.user.username;
-        if (S.users[res.user.username]) {
-          S.users[res.user.username].has_password = true;
-          S.users[res.user.username].email = email;
-        } else {
-          S.users[res.user.username] = { n: res.user.fullName || res.user.username, email, role: res.user.role || 'staff', has_password: true };
-        }
-        toast('Credentials configured successfully!');
+        S.users[U] = { n: res.user.fullName || U, email: res.user.email || email, role: res.user.role || 'admin', has_password: true };
+
+        toast(`Welcome, ${res.user.fullName || res.user.username}! Credentials saved.`);
         render();
-        try { await initialLoad(); } catch (e) { console.warn('Post-setup state load:', e.message); }
+        initialLoad().catch(() => {});
       } catch (err) {
-        login(k, err.message);
+        if (btn) { btn.disabled = false; btn.innerHTML = 'Save Credentials &amp; Enter Dashboard &rarr;'; }
+        login(email, err.message);
       }
     }
 
     async function sendForgotOtp() {
       const idInput = $('#forgot_id')?.value.trim();
-      const bindEmail = $('#forgot_bind_email')?.value.trim();
       if (!idInput) {
         return login(null, 'Please enter your registered email address.');
       }
@@ -1141,7 +1160,7 @@
       try {
         const res = await apiCall('/api/auth/forgot-password', {
           method: 'POST',
-          body: JSON.stringify({ identifier: idInput, email: bindEmail })
+          body: JSON.stringify({ identifier: idInput })
         });
 
         let successMessage = res.message || 'Verification code sent to your email!';
@@ -1156,11 +1175,6 @@
         }
       } catch (err) {
         if (btn) { btn.disabled = false; btn.textContent = 'Send Verification Code'; }
-        if (err.message && err.message.includes('No recovery email')) {
-          const wrapper = $('#forgot_email_wrapper');
-          if (wrapper) wrapper.style.display = 'block';
-          return login(null, err.message);
-        }
         login(null, err.message);
       }
     }
@@ -1187,7 +1201,7 @@
           body: JSON.stringify({ identifier: id, code, new_password: p1 })
         });
 
-        authTab = 'login';
+        authTab = 'signin';
         login(id, '', res.message || 'Password reset successfully! Please log in with your new password.');
         toast('Password updated! You can now log in.');
       } catch (err) {
