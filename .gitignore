@@ -4,3 +4,5 @@ data/local_db.json
 src-tauri/target/
 src-tauri/gen/
 .vscode/
+
+skills-lock.json

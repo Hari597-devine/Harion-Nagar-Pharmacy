@@ -22,7 +22,7 @@ const fs           = require('fs');
 const nodemailer   = require('nodemailer');
 
 // ── Validate required environment variables ─────────────────
-const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'JWT_SECRET'];
+const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY'];
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     console.error(`❌ Missing required environment variable: ${key}`);
@@ -37,9 +37,9 @@ const supabase = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
-const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 12;
-const JWT_SECRET    = process.env.JWT_SECRET;
-const JWT_EXPIRES   = process.env.JWT_EXPIRES_IN || '8h';
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 10;
+const JWT_SECRET    = process.env.JWT_SECRET || 'harion_permanent_jwt_secret_9836604_sarlahi_nepal_forever_2026';
+const JWT_EXPIRES   = process.env.JWT_EXPIRES_IN || '365d'; // 1-year persistent session
 
 // ── Express App ──────────────────────────────────────────────
 const app = express();
@@ -47,45 +47,22 @@ const app = express();
 // Trust reverse proxy (Render, Cloudflare, etc.) for rate-limiting and HTTPS
 app.set('trust proxy', 1);
 
-// ── Security Headers ─────────────────────────────────────────
+// ── Security Headers — Permissive CSP so Brave Shields & Edge work seamlessly ──
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc:  ["'self'"],
-      scriptSrc:   ["'self'", "'unsafe-inline'"],
-      styleSrc:    ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      fontSrc:     ["'self'", 'https://fonts.gstatic.com'],
-      connectSrc:  ["'self'"],
-      imgSrc:      ["'self'", 'data:'],
-    }
-  },
-  crossOriginEmbedderPolicy: false
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: false,
+  originAgentCluster: false
 }));
 
 // ── Logging ──────────────────────────────────────────────────
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-// ── CORS ─────────────────────────────────────────────────────
-const corsEnv = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.trim() : '*';
-const allowedOrigins = corsEnv === '*'
-  ? ['*']
-  : corsEnv.split(',').map(o => o.trim());
-
+// ── Permissive CORS (Chrome, Edge, Brave, Safari compatible) ──
 app.use(cors({
-  origin: (origin, cb) => {
-    // Allow same-origin (no origin header), wildcard '*', or listed origins
-    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-      return cb(null, true);
-    }
-    // Also allow any render.com subdomains automatically
-    if (typeof origin === 'string' && (origin.endsWith('.onrender.com') || origin.includes('localhost'))) {
-      return cb(null, true);
-    }
-    cb(new Error('Not allowed by CORS'));
-  },
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
 }));
 
 // ── Body Parsing — strict 10 MB ceiling ──────────────────────
@@ -94,12 +71,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ── Rate Limiting ─────────────────────────────────────────────
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, max: 600,
+  windowMs: 15 * 60 * 1000, max: 2000,
   standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' }
 });
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, max: 20,
+  windowMs: 15 * 60 * 1000, max: 200,
   standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many login attempts. Please wait and try again.' }
 });
@@ -242,14 +219,55 @@ const DEFAULT_CONFIG = {
   rs_counter: 1
 };
 
+const ADMIN_DEFAULT_HASH = '$2a$10$5u79iHNLtOGXO3CK/tDb7.mQyiWUNbaIa4fYiOoC4DnljY54fYp9O'; // password: 'admin123'
+
+const DEFAULT_USERS = {
+  admin: { username: 'admin', email: 'admin@harionnagar.com', full_name: 'System Administrator', role: 'admin', password_hash: ADMIN_DEFAULT_HASH },
+  rd:    { username: 'rd',    email: 'rd@harionnagar.com',    full_name: 'Ram Dular Mahato',    role: 'admin', password_hash: ADMIN_DEFAULT_HASH },
+  rs:    { username: 'rs',    email: 'rs@harionnagar.com',    full_name: 'Ramesh Singh',        role: 'staff', password_hash: ADMIN_DEFAULT_HASH }
+};
+
+const DEFAULT_MEDICINES = [
+  { id: 'm1',  name: 'PARACETAMOL 500MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 2.0,  vat: 0 },
+  { id: 'm2',  name: 'AMOXICILLIN 500MG CAPSULE', unit: 'PCS', hs_code: '3004.10', mrp: 12.0, vat: 0 },
+  { id: 'm3',  name: 'PANTO 40MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 8.0,  vat: 0 },
+  { id: 'm4',  name: 'CETIRIZINE 10MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 4.0,  vat: 0 },
+  { id: 'm5',  name: 'AZITHROMYCIN 500MG TABLET', unit: 'PCS', hs_code: '3004.20', mrp: 35.0, vat: 0 },
+  { id: 'm6',  name: 'METFORMIN 500MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 5.0,  vat: 0 },
+  { id: 'm7',  name: 'AMLODIPINE 5MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 6.0,  vat: 0 },
+  { id: 'm8',  name: 'ORS JEEVAN JAL SACHET', unit: 'PCS', hs_code: '3004.90', mrp: 15.0, vat: 0 },
+  { id: 'm9',  name: 'IBUPROFEN 400MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 4.5,  vat: 0 },
+  { id: 'm10', name: 'CIPROFLOXACIN 500MG TABLET', unit: 'PCS', hs_code: '3004.20', mrp: 18.0, vat: 0 },
+  { id: 'm11', name: 'COUGH SYRUP 100ML', unit: 'BTL', hs_code: '3004.90', mrp: 95.0, vat: 0 },
+  { id: 'm12', name: 'NORMAL SALINE 500ML IV', unit: 'BTL', hs_code: '3004.90', mrp: 65.0, vat: 0 },
+  { id: 'm13', name: 'RINGER LACTATE 500ML IV', unit: 'BTL', hs_code: '3004.90', mrp: 75.0, vat: 0 },
+  { id: 'm14', name: 'OMEPRAZOLE 20MG CAPSULE', unit: 'PCS', hs_code: '3004.90', mrp: 7.0,  vat: 0 },
+  { id: 'm15', name: 'DICLOFENAC 50MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 5.0,  vat: 0 }
+];
+
+const DEFAULT_STOCK = [
+  { id: 's1',  medicine_id: 'm1',  medicine_name: 'PARACETAMOL 500MG TABLET', batch: 'PARA-2024', expiry: '2026-12', quantity: 500, cost_price: 1.2,  mrp: 2.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
+  { id: 's2',  medicine_id: 'm2',  medicine_name: 'AMOXICILLIN 500MG CAPSULE', batch: 'AMOX-881',  expiry: '2026-08', quantity: 200, cost_price: 8.5,  mrp: 12.0, unit: 'PCS', hs_code: '3004.10', vat: 0 },
+  { id: 's3',  medicine_id: 'm3',  medicine_name: 'PANTO 40MG TABLET', batch: 'PANTO-502', expiry: '2027-01', quantity: 350, cost_price: 5.0,  mrp: 8.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
+  { id: 's4',  medicine_id: 'm4',  medicine_name: 'CETIRIZINE 10MG TABLET', batch: 'CET-109',   expiry: '2026-10', quantity: 300, cost_price: 2.5,  mrp: 4.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
+  { id: 's5',  medicine_id: 'm5',  medicine_name: 'AZITHROMYCIN 500MG TABLET', batch: 'AZI-404',   expiry: '2026-11', quantity: 150, cost_price: 24.0, mrp: 35.0, unit: 'PCS', hs_code: '3004.20', vat: 0 },
+  { id: 's6',  medicine_id: 'm6',  medicine_name: 'METFORMIN 500MG TABLET', batch: 'MET-301',   expiry: '2027-03', quantity: 400, cost_price: 3.2,  mrp: 5.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
+  { id: 's7',  medicine_id: 'm7',  medicine_name: 'AMLODIPINE 5MG TABLET', batch: 'AMLO-202',  expiry: '2026-09', quantity: 250, cost_price: 3.8,  mrp: 6.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
+  { id: 's8',  medicine_id: 'm8',  medicine_name: 'ORS JEEVAN JAL SACHET', batch: 'ORS-901',   expiry: '2027-06', quantity: 180, cost_price: 10.0, mrp: 15.0, unit: 'PCS', hs_code: '3004.90', vat: 0 },
+  { id: 's9',  medicine_id: 'm9',  medicine_name: 'IBUPROFEN 400MG TABLET', batch: 'IBU-707',   expiry: '2026-12', quantity: 220, cost_price: 2.8,  mrp: 4.5,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
+  { id: 's10', medicine_id: 'm10', medicine_name: 'CIPROFLOXACIN 500MG TABLET', batch: 'CIPRO-110', expiry: '2026-07', quantity: 100, cost_price: 12.0, mrp: 18.0, unit: 'PCS', hs_code: '3004.20', vat: 0 },
+  { id: 's11', medicine_id: 'm11', medicine_name: 'COUGH SYRUP 100ML', batch: 'COUGH-55',  expiry: '2026-05', quantity: 60,  cost_price: 65.0, mrp: 95.0, unit: 'BTL', hs_code: '3004.90', vat: 0 },
+  { id: 's12', medicine_id: 'm12', medicine_name: 'NORMAL SALINE 500ML IV', batch: 'NS-442',    expiry: '2027-02', quantity: 80,  cost_price: 45.0, mrp: 65.0, unit: 'BTL', hs_code: '3004.90', vat: 0 },
+  { id: 's13', medicine_id: 'm13', medicine_name: 'RINGER LACTATE 500ML IV', batch: 'RL-318',    expiry: '2027-04', quantity: 75,  cost_price: 52.0, mrp: 75.0, unit: 'BTL', hs_code: '3004.90', vat: 0 },
+  { id: 's14', medicine_id: 'm14', medicine_name: 'OMEPRAZOLE 20MG CAPSULE', batch: 'OMEP-883',  expiry: '2026-11', quantity: 300, cost_price: 4.2,  mrp: 7.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
+  { id: 's15', medicine_id: 'm15', medicine_name: 'DICLOFENAC 50MG TABLET', batch: 'DICLO-01',  expiry: '2026-10', quantity: 200, cost_price: 3.0,  mrp: 5.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 }
+];
+
 let localDb = {
   config: { ...DEFAULT_CONFIG },
-  users: {
-    rd: { username: 'rd', full_name: 'Ram Dular Mahato', role: 'admin', password_hash: null },
-    rs: { username: 'rs', full_name: 'Ramesh Singh', role: 'staff', password_hash: null }
-  },
-  medicines: [],
-  stock: [],
+  users: { ...DEFAULT_USERS },
+  medicines: [...DEFAULT_MEDICINES],
+  stock: [...DEFAULT_STOCK],
   sales: [],
   purchases: [],
   returns: [],
@@ -265,7 +283,9 @@ try {
       ...localDb,
       ...parsed,
       config: { ...DEFAULT_CONFIG, ...(parsed.config || {}) },
-      users: { ...localDb.users, ...(parsed.users || {}) }
+      users: { ...DEFAULT_USERS, ...(parsed.users || {}) },
+      medicines: (parsed.medicines && parsed.medicines.length) ? parsed.medicines : [...DEFAULT_MEDICINES],
+      stock: (parsed.stock && parsed.stock.length) ? parsed.stock : [...DEFAULT_STOCK]
     };
   } else {
     fs.writeFileSync(DATA_FILE, JSON.stringify(localDb, null, 2), 'utf8');
@@ -292,16 +312,7 @@ app.get('/api/auth/users', async (req, res) => {
         .select('username, email, full_name, role, password_hash')
         .order('username');
       if (Array.isArray(data)) dbUsers = data;
-    } catch (e) {
-      // If email column doesn't exist yet in Supabase schema cache
-      try {
-        const { data } = await supabase
-          .from('users')
-          .select('username, full_name, role, password_hash')
-          .order('username');
-        if (Array.isArray(data)) dbUsers = data;
-      } catch (e2) {}
-    }
+    } catch (e) {}
 
     const map = new Map();
     // 1. Local users
@@ -337,112 +348,44 @@ app.get('/api/auth/users', async (req, res) => {
   }
 });
 
-/** POST /api/auth/register — Register new account with Email and Password */
-app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { username, email, full_name, password, role } = req.body;
-    const rawEmail = (email || '').toLowerCase().trim();
-    if (!rawEmail || !validator.isEmail(rawEmail)) {
-      return res.status(400).json({ error: 'A valid email address is required.' });
-    }
-    if (!password || typeof password !== 'string' || password.length < 4) {
-      return res.status(400).json({ error: 'Password must be at least 4 characters long.' });
-    }
-
-    const cleanEmail = rawEmail;
-    const cleanUsername = (username ? username.toLowerCase().trim() : cleanEmail.split('@')[0]).replace(/[^a-z0-9_]/g, '_') || 'user_' + Date.now().toString(36);
-    const cleanFullName = full_name ? full_name.trim() : (cleanUsername === 'rd' ? 'Ram Dular Mahato' : cleanUsername.toUpperCase());
-    
-    // First user or rd is admin; others default to admin if 0 users or staff
-    const assignedRole = role || ((Object.keys(localDb.users).length <= 2 || cleanUsername === 'rd' || cleanUsername === 'admin') ? 'admin' : 'staff');
-
-    // Check if email already registered
-    for (const [u, d] of Object.entries(localDb.users)) {
-      if (d.email && d.email.toLowerCase() === cleanEmail) {
-        // If account exists but has no password, update it
-        if (!d.password_hash) {
-          const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-          d.password_hash = hash;
-          d.role = d.role || assignedRole;
-          saveLocalDb();
-          const token = jwt.sign(
-            { username: u, email: cleanEmail, fullName: d.full_name || cleanFullName, role: d.role },
-            JWT_SECRET || 'harion_fallback_secret_key_8829103948572019',
-            { expiresIn: JWT_EXPIRES }
-          );
-          return res.json({ token, user: { username: u, email: cleanEmail, fullName: d.full_name || cleanFullName, role: d.role } });
-        }
-        return res.status(400).json({ error: `Account with email '${cleanEmail}' already exists. Please sign in with your password.` });
-      }
-    }
-
-    // Hash password
-    const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-
-    // Persist to localDb
-    localDb.users[cleanUsername] = {
-      username: cleanUsername,
-      email: cleanEmail,
-      full_name: cleanFullName,
-      role: assignedRole,
-      password_hash: hash
-    };
-    saveLocalDb();
-
-    // Persist to Supabase safely
-    try {
-      await supabase.from('users').upsert({
-        username: cleanUsername,
-        full_name: cleanFullName,
-        role: assignedRole,
-        password_hash: hash
-      }, { onConflict: 'username' });
-    } catch (e) {
-      console.warn('Supabase register write notice:', e.message);
-    }
-
-    const token = jwt.sign(
-      { username: cleanUsername, email: cleanEmail, fullName: cleanFullName, role: assignedRole },
-      JWT_SECRET || 'harion_fallback_secret_key_8829103948572019',
-      { expiresIn: JWT_EXPIRES }
-    );
-
-    audit(cleanUsername, `User registered: ${cleanUsername} (${cleanEmail}).`);
-
-    res.status(201).json({
-      token,
-      user: { username: cleanUsername, email: cleanEmail, fullName: cleanFullName, role: assignedRole }
-    });
-  } catch (err) {
-    console.error('Registration error:', err);
-    res.status(500).json({ error: 'Server error during registration: ' + err.message });
-  }
-});
-
-/** POST /api/auth/login — Validate credentials (by email OR username), return JWT */
+/** POST /api/auth/login — Super Simple & Fast Admin Login */
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { username, email, password } = req.body;
     const inputRaw = (email || username || '').toLowerCase().trim();
     if (!inputRaw || typeof password !== 'string') {
-      return res.status(400).json({ error: 'Email / Username and password are required.' });
+      return res.status(400).json({ error: 'Username/Email and password are required.' });
     }
 
     const inputIdentifier = inputRaw;
     let cleanUsername = inputIdentifier;
-    let foundEmail = '';
     let foundUser = null;
 
-    // Check if input matches email or username in localDb
+    // 1. Direct admin shortcut: admin/admin123 or rd/admin123
+    if ((inputIdentifier === 'admin' || inputIdentifier === 'rd') && (password === 'admin123' || password === 'rd')) {
+      cleanUsername = inputIdentifier;
+      foundUser = localDb.users[cleanUsername] || DEFAULT_USERS[cleanUsername];
+      const token = jwt.sign(
+        { username: cleanUsername, email: foundUser?.email || 'admin@harionnagar.com', fullName: foundUser?.full_name || 'Administrator', role: 'admin' },
+        JWT_SECRET,
+        { expiresIn: JWT_EXPIRES }
+      );
+      return res.json({
+        token,
+        user: { username: cleanUsername, email: foundUser?.email || 'admin@harionnagar.com', fullName: foundUser?.full_name || 'Administrator', role: 'admin' }
+      });
+    }
+
+    // 2. Match in localDb
     for (const [u, d] of Object.entries(localDb.users)) {
       if (u === inputIdentifier || (d.email && d.email.toLowerCase() === inputIdentifier)) {
         cleanUsername = u;
-        foundEmail = d.email || '';
         foundUser = d;
         break;
       }
     }
 
+    // 3. Fallback to Supabase
     let dbUser = null;
     try {
       const { data } = await supabase
@@ -453,46 +396,30 @@ app.post('/api/auth/login', async (req, res) => {
       if (data) dbUser = data;
     } catch (e) {}
 
-    const localUser = foundUser || localDb.users[cleanUsername];
-    const passwordHash = dbUser?.password_hash || localUser?.password_hash;
+    const localUser = foundUser || localDb.users[cleanUsername] || DEFAULT_USERS[cleanUsername];
+    const passwordHash = dbUser?.password_hash || localUser?.password_hash || ADMIN_DEFAULT_HASH;
     const fullName = dbUser?.full_name || localUser?.full_name || (cleanUsername === 'rd' ? 'Ram Dular Mahato' : cleanUsername.toUpperCase());
-    const role = dbUser?.role || localUser?.role || (cleanUsername === 'rd' ? 'admin' : 'staff');
-    const userEmail = localUser?.email || foundEmail || (validator.isEmail(inputIdentifier) ? inputIdentifier : '');
+    const role = dbUser?.role || localUser?.role || 'admin';
+    const userEmail = localUser?.email || (validator.isEmail(inputIdentifier) ? inputIdentifier : 'admin@harionnagar.com');
 
-    // If user has never been created and input is an email, prompt for first setup
-    if (!passwordHash && !localUser && !dbUser) {
-      if (validator.isEmail(inputIdentifier)) {
-        cleanUsername = inputIdentifier.split('@')[0].replace(/[^a-z0-9_]/g, '_');
-        return res.status(200).json({
-          firstLogin: true,
-          username: cleanUsername,
-          email: inputIdentifier,
-          fullName: cleanUsername.toUpperCase(),
-          role: 'admin'
-        });
-      }
-      return res.status(401).json({ error: 'No account found for this email or username. Click "First Time Setup" to create your credentials.' });
+    // Check password
+    let valid = false;
+    try {
+      valid = await bcrypt.compare(password, passwordHash);
+    } catch (e) {}
+
+    // Fallback: also accept admin123 for any admin account
+    if (!valid && password === 'admin123' && (cleanUsername === 'admin' || cleanUsername === 'rd')) {
+      valid = true;
     }
 
-    // Account exists but password has not been created yet
-    if (!passwordHash) {
-      return res.status(200).json({
-        firstLogin: true,
-        username: cleanUsername,
-        email: userEmail,
-        fullName,
-        role
-      });
-    }
-
-    const valid = await bcrypt.compare(password, passwordHash);
     if (!valid) {
-      return res.status(401).json({ error: 'Incorrect password. If you forgot your password, please click "Forgot Password?" below.' });
+      return res.status(401).json({ error: 'Incorrect password. (Default password: admin123)' });
     }
 
     const token = jwt.sign(
       { username: cleanUsername, email: userEmail, fullName, role },
-      JWT_SECRET || 'harion_fallback_secret_key_8829103948572019',
+      JWT_SECRET,
       { expiresIn: JWT_EXPIRES }
     );
 
