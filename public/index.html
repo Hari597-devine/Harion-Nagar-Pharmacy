@@ -627,8 +627,8 @@
       v: 2,
       cfg: { ...DC },
       users: {
-        rd: { n: 'Ram Dular Mahato', role: 'admin', has_password: false },
-        rs: { n: 'Ramesh Singh', role: 'staff', has_password: false }
+        rd: { n: 'Ram Dular Mahato', email: '', role: 'admin', has_password: false },
+        rs: { n: 'Ramesh Singh', email: '', role: 'staff', has_password: false }
       },
       med: [],
       stock: [],
@@ -1076,9 +1076,13 @@
         setToken(res.token);
         localStorage.setItem(USER_KEY, res.user.username);
         U = res.user.username;
+        // Ensure user is in the local state
+        if (!S.users[U]) {
+          S.users[U] = { n: res.user.fullName || U, email: res.user.email || '', role: res.user.role || 'staff', has_password: true };
+        }
         toast(`Welcome, ${res.user.fullName || res.user.username}!`);
         render();
-        initialLoad().catch(() => {});
+        try { await initialLoad(); } catch (e) { console.warn('Post-login state load:', e.message); }
       } catch (err) {
         if (btn) { btn.disabled = false; btn.innerHTML = 'Sign In &amp; Enter Dashboard &rarr;'; }
         login(emailOrUser, err.message);
@@ -1112,10 +1116,12 @@
         if (S.users[res.user.username]) {
           S.users[res.user.username].has_password = true;
           S.users[res.user.username].email = email;
+        } else {
+          S.users[res.user.username] = { n: res.user.fullName || res.user.username, email, role: res.user.role || 'staff', has_password: true };
         }
         toast('Credentials configured successfully!');
         render();
-        initialLoad().catch(() => {});
+        try { await initialLoad(); } catch (e) { console.warn('Post-setup state load:', e.message); }
       } catch (err) {
         login(k, err.message);
       }
