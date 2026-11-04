@@ -20,8 +20,9 @@ CREATE TABLE IF NOT EXISTS users (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure email column exists if users table was created previously without it
+-- Ensure email and permissions columns exist if users table was created previously without them
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}';
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -165,10 +166,16 @@ CREATE TABLE IF NOT EXISTS config (
   adj_password     BOOLEAN     DEFAULT TRUE,
   auto_print       BOOLEAN     DEFAULT TRUE,
   accent           TEXT        DEFAULT '',
+  payment_qr_url   TEXT        DEFAULT '',
+  payment_qr_label TEXT        DEFAULT 'Scan to Pay',
   seq              INTEGER     DEFAULT 1,
   rs_counter       INTEGER     DEFAULT 1,
   CHECK (id = 1)
 );
+
+-- Ensure payment QR columns exist if config table was created previously without them
+ALTER TABLE config ADD COLUMN IF NOT EXISTS payment_qr_url TEXT DEFAULT '';
+ALTER TABLE config ADD COLUMN IF NOT EXISTS payment_qr_label TEXT DEFAULT 'Scan to Pay';
 
 -- ============================================================
 --  SEED DATA
@@ -214,24 +221,42 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at  ON audit_logs(created_at D
 --    ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 --    ALTER TABLE public.config DISABLE ROW LEVEL SECURITY;
 -- ============================================================
-ALTER TABLE users        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE medicines    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE stock        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE purchases    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE sales        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE returns      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE adjustments  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_logs   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE config       ENABLE ROW LEVEL SECURITY;
+-- ============================================================
+--  ROW LEVEL SECURITY
+-- ============================================================
+DO $$
+BEGIN
+  -- 1. Ensure RLS is enabled on all tables
+  ALTER TABLE IF EXISTS public.users        ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE IF EXISTS public.medicines    ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE IF EXISTS public.stock        ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE IF EXISTS public.purchases    ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE IF EXISTS public.sales        ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE IF EXISTS public.returns      ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE IF EXISTS public.adjustments  ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE IF EXISTS public.audit_logs   ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE IF EXISTS public.config       ENABLE ROW LEVEL SECURITY;
 
--- Block all direct anonymous/authenticated access (all access via Express service key only)
-CREATE POLICY "deny_all_users"       ON users       FOR ALL TO anon, authenticated USING (false);
-CREATE POLICY "deny_all_medicines"   ON medicines   FOR ALL TO anon, authenticated USING (false);
-CREATE POLICY "deny_all_stock"       ON stock       FOR ALL TO anon, authenticated USING (false);
-CREATE POLICY "deny_all_purchases"   ON purchases   FOR ALL TO anon, authenticated USING (false);
-CREATE POLICY "deny_all_sales"       ON sales       FOR ALL TO anon, authenticated USING (false);
-CREATE POLICY "deny_all_returns"     ON returns     FOR ALL TO anon, authenticated USING (false);
-CREATE POLICY "deny_all_adjustments" ON adjustments FOR ALL TO anon, authenticated USING (false);
-CREATE POLICY "deny_all_audit_logs"  ON audit_logs  FOR ALL TO anon, authenticated USING (false);
-CREATE POLICY "deny_all_config"      ON config      FOR ALL TO anon, authenticated USING (false);
+  -- 2. Drop existing policies before creating to ensure idempotency and resolve lint issues
+  DROP POLICY IF EXISTS "deny_all_users"       ON public.users;
+  DROP POLICY IF EXISTS "deny_all_medicines"   ON public.medicines;
+  DROP POLICY IF EXISTS "deny_all_stock"       ON public.stock;
+  DROP POLICY IF EXISTS "deny_all_purchases"   ON public.purchases;
+  DROP POLICY IF EXISTS "deny_all_sales"       ON public.sales;
+  DROP POLICY IF EXISTS "deny_all_returns"     ON public.returns;
+  DROP POLICY IF EXISTS "deny_all_adjustments" ON public.adjustments;
+  DROP POLICY IF EXISTS "deny_all_audit_logs"  ON public.audit_logs;
+  DROP POLICY IF EXISTS "deny_all_config"      ON public.config;
+
+  -- 3. Create deny-all policies for direct anon/public access (server uses service_role key to bypass)
+  CREATE POLICY "deny_all_users"       ON public.users       FOR ALL TO anon, authenticated USING (false);
+  CREATE POLICY "deny_all_medicines"   ON public.medicines   FOR ALL TO anon, authenticated USING (false);
+  CREATE POLICY "deny_all_stock"       ON public.stock       FOR ALL TO anon, authenticated USING (false);
+  CREATE POLICY "deny_all_purchases"   ON public.purchases   FOR ALL TO anon, authenticated USING (false);
+  CREATE POLICY "deny_all_sales"       ON public.sales       FOR ALL TO anon, authenticated USING (false);
+  CREATE POLICY "deny_all_returns"     ON public.returns     FOR ALL TO anon, authenticated USING (false);
+  CREATE POLICY "deny_all_adjustments" ON public.adjustments FOR ALL TO anon, authenticated USING (false);
+  CREATE POLICY "deny_all_audit_logs"  ON public.audit_logs  FOR ALL TO anon, authenticated USING (false);
+  CREATE POLICY "deny_all_config"      ON public.config      FOR ALL TO anon, authenticated USING (false);
+END $$;
 

@@ -438,8 +438,8 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/set-password', async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    if (!password || typeof password !== 'string' || password.length < 4) {
-      return res.status(400).json({ error: 'Password must be at least 4 characters.' });
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' });
     }
 
     let cleanUsername = username ? username.toLowerCase().trim() : '';
@@ -608,8 +608,8 @@ app.post('/api/auth/reset-password', async (req, res) => {
     if (!identifier || !code || !new_password) {
       return res.status(400).json({ error: 'Identifier (username/email), verification code, and new password are required.' });
     }
-    if (new_password.length < 4) {
-      return res.status(400).json({ error: 'Password must be at least 4 characters long.' });
+    if (new_password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
     const cleanId = identifier.toLowerCase().trim();
@@ -1560,7 +1560,7 @@ app.post('/api/users', authenticate, adminOnly, async (req, res) => {
     }
 
     let password_hash = null;
-    if (password && typeof password === 'string' && password.length >= 4) {
+    if (password && typeof password === 'string' && password.length >= 6) {
       password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     }
 
@@ -1620,6 +1620,13 @@ app.post('/api/pharmacy/config', authenticate, adminOnly, async (req, res) => {
     for (const k of allowed) {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
     }
+    if (updates.vat !== undefined) updates.vat = Math.max(0, Math.min(100, parseFloat(updates.vat) || 0));
+    if (updates.low_stock_level !== undefined) updates.low_stock_level = Math.max(1, parseInt(updates.low_stock_level, 10) || 10);
+    if (updates.expiry_days !== undefined) updates.expiry_days = Math.max(1, parseInt(updates.expiry_days, 10) || 90);
+    if (updates.name) updates.name = san(updates.name, 120);
+    if (updates.addr) updates.addr = san(updates.addr, 150);
+    if (updates.pan) updates.pan = san(updates.pan, 30);
+    if (updates.prefix) updates.prefix = san(updates.prefix, 10).toUpperCase();
     localDb.config = { ...localDb.config, ...updates };
     saveLocalDb();
     try { await supabase.from('config').upsert({ id: 1, ...localDb.config }, { onConflict: 'id' }); } catch(e){}
