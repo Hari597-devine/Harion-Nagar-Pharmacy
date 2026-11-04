@@ -1,0 +1,2744 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>HARION NAGAR HOSPITAL & PHARMACY INVENTORY — Management System</title>
+  
+  <!-- Typography: Inter for clean UI, JetBrains Mono for financial figures & codes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --cd: #ffffff;
+      --tx: #0f172a;
+      --mu: #64748b;
+      --ac: #0f766e;
+      --ac-hover: #115e59;
+      --ac-light: #ccfbf1;
+      --bd: #e2e8f0;
+      --er: #dc2626;
+      --er-bg: #fef2f2;
+      --ok: #16a34a;
+      --ok-bg: #f0fdf4;
+      --warn: #d97706;
+      --warn-bg: #fffbeb;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Inter', system-ui, -apple-system, sans-serif;
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0f172a;
+        --cd: #1e293b;
+        --tx: #f8fafc;
+        --mu: #94a3b8;
+        --ac: #2dd4bf;
+        --ac-hover: #14b8a6;
+        --ac-light: #134e4a;
+        --bd: #334155;
+        --er: #f87171;
+        --er-bg: #450a0a;
+        --ok: #4ade80;
+        --ok-bg: #052e16;
+        --warn: #fbbf24;
+        --warn-bg: #451a03;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #0f172a;
+      --cd: #1e293b;
+      --tx: #f8fafc;
+      --mu: #94a3b8;
+      --ac: #2dd4bf;
+      --ac-hover: #14b8a6;
+      --ac-light: #134e4a;
+      --bd: #334155;
+      --er: #f87171;
+      --er-bg: #450a0a;
+      --ok: #4ade80;
+      --ok-bg: #052e16;
+      --warn: #fbbf24;
+      --warn-bg: #451a03;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--tx);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Offline Toast Banner */
+    #offline-banner {
+      display: none;
+      background: var(--warn);
+      color: #fff;
+      padding: 8px 16px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 13px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #offline-banner.visible { display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: var(--ac);
+      color: #fff;
+      flex-wrap: wrap;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .header-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+    .header-user { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .user-badge {
+      background: rgba(255,255,255,0.2);
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    nav {
+      display: flex;
+      gap: 6px;
+      padding: 8px 20px;
+      background: var(--cd);
+      border-bottom: 1px solid var(--bd);
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    nav button {
+      white-space: nowrap;
+      padding: 8px 14px;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--mu);
+      border: 1px solid transparent;
+      font-weight: 500;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    nav button:hover {
+      color: var(--tx);
+      background: var(--bg);
+      border-color: var(--bd);
+    }
+    nav button.on {
+      background: var(--ac);
+      color: #fff;
+      border-color: var(--ac);
+      font-weight: 600;
+    }
+
+    main {
+      padding: 16px 20px 40px;
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    .card {
+      background: var(--cd);
+      border: 1px solid var(--bd);
+      border-radius: 8px;
+      padding: 18px;
+      margin: 12px 0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--tx);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--bd);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--tx);
+      font-family: inherit;
+      font-size: 13px;
+      margin: 4px 0;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--ac);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+    }
+    input[type="number"] { font-family: var(--mono); }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--ac);
+      color: #fff;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.05s ease;
+    }
+    button:hover { background: var(--ac-hover); }
+    button:active { transform: scale(0.98); }
+    button.g {
+      background: transparent;
+      color: var(--tx);
+      border: 1px solid var(--bd);
+      font-weight: 500;
+    }
+    button.g:hover { background: var(--bg); border-color: var(--mu); }
+    button.danger {
+      background: var(--er);
+      color: #fff;
+    }
+    button.danger:hover { background: #b91c1c; }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 6px 0;
+      align-items: flex-end;
+    }
+    .row > * { flex: 1 1 110px; }
+    .row > select, .row > .w { flex: 3 1 240px; }
+    .row > button { flex: 0 0 auto; height: 38px; margin: 4px 0; }
+
+    .f {
+      display: flex;
+      flex-direction: column;
+      font-size: 12px;
+      color: var(--mu);
+      font-weight: 500;
+      flex: 1 1 120px;
+    }
+    .f input, .f select { margin-top: 4px; }
+    .row > .f.w { flex: 3 1 240px; }
+
+    .x { overflow-x: auto; scrollbar-width: thin; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--bd);
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      font-weight: 600;
+      color: var(--mu);
+      background: var(--bg);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    td.n, th.n { text-align: right; font-family: var(--mono); }
+    td.mono { font-family: var(--mono); }
+    tr:hover td { background: rgba(0,0,0,0.015); }
+
+    .err { color: var(--er); font-size: 12px; min-height: 1.2em; margin-top: 4px; font-weight: 500; }
+    .warn { color: var(--warn); font-weight: 600; }
+    .mu { color: var(--mu); font-size: 12px; }
+
+    .ov {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+    }
+    .ov .card { width: 100%; margin: 0; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 8px;
+      z-index: 60;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.25);
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+    .exp { background: var(--er-bg); color: var(--er); font-weight: 600; }
+    .nex { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+
+    /* Dashboard Metric Cards Grid */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .metric-card {
+      background: var(--cd);
+      border: 1px solid var(--bd);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--ac);
+    }
+    .metric-card.warn::before { background: var(--warn); }
+    .metric-card.danger::before { background: var(--er); }
+    .metric-card.success::before { background: var(--ok); }
+    .metric-label {
+      font-size: 12px;
+      color: var(--mu);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .metric-value {
+      font-size: 24px;
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--tx);
+    }
+    .metric-sub {
+      font-size: 11px;
+      color: var(--mu);
+    }
+
+    /* Print View Modal Styling */
+    .pv .bh { display: flex; justify-content: space-between; margin: 6px 0; }
+    .pv .r { text-align: right; }
+    .pv .c { text-align: center; margin: 6px 0; }
+    .pv table { width: 100%; border-collapse: collapse; border-top: 1px solid #000; border-bottom: 1px solid #000; }
+    .pv th, .pv td { padding: 4px 6px; border: 0; color: #000; white-space: normal; font-size: 11px; }
+    .pv th { border-bottom: 1px solid #000; font-weight: 700; }
+    .pv .n { text-align: right; font-family: var(--mono); }
+    .pv hr { border: 0; border-top: 1px solid #000; margin: 4px 0; }
+
+    #bill { display: none; }
+    /* Dynamic Print Page Styling (configured via print toolbar) */
+    @page { size: auto; margin: 8mm; }
+    @media print {
+      #app, .toast, .ov, #offline-banner { display: none !important; }
+      body { background: #fff !important; }
+      #bill {
+        display: block !important;
+        color: #000 !important;
+        background: #fff !important;
+        font: 11px Arial, sans-serif !important;
+        width: 100% !important;
+      }
+      #bill .bh { display: flex; justify-content: space-between; margin: 4px 0; }
+      #bill .r { text-align: right; }
+      #bill .c { text-align: center; margin: 4px 0; }
+      #bill table { border-top: 1px solid #000; border-bottom: 1px solid #000; width: 100%; }
+      #bill th, #bill td { padding: 3px 4px; border: 0; white-space: normal; color: #000; font-size: 11px; }
+      #bill th { border-bottom: 1px solid #000; font-weight: 700; }
+      #bill .n { text-align: right; font-family: 'JetBrains Mono', monospace; }
+      #bill hr { border: 0; border-top: 1px solid #000; margin: 4px 0; }
+      .bill-copy { page-break-after: always; padding-bottom: 12mm; }
+      .bill-copy:last-child { page-break-after: avoid; }
+    }
+
+    /* ============================================================
+       GRAPHICAL DASHBOARD & ANALYTICS STYLING
+       ============================================================ */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .chart-card {
+      background: var(--cd);
+      border: 1px solid var(--bd);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--bd);
+      padding-bottom: 8px;
+    }
+    .chart-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--tx);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .chart-sub {
+      font-size: 11px;
+      color: var(--mu);
+    }
+    .dash-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--bd);
+      padding-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .dash-tab-btn {
+      background: var(--bg);
+      color: var(--mu);
+      border: 1px solid var(--bd);
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .dash-tab-btn.active {
+      background: var(--ac);
+      color: #fff;
+      border-color: var(--ac);
+      box-shadow: 0 2px 4px rgba(15, 118, 110, 0.2);
+    }
+    .dash-tab-btn:hover:not(.active) {
+      background: var(--cd);
+      color: var(--tx);
+      border-color: var(--mu);
+    }
+    .hbar-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+    .hbar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .hbar-track {
+      height: 10px;
+      background: var(--bg);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+    .hbar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .donut-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 6px 0;
+    }
+    .donut-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1 1 180px;
+    }
+    .legend-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      transition: background 0.1s ease;
+    }
+    .legend-row:hover {
+      background: var(--bg);
+    }
+    .legend-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .stacked-bar-track {
+      display: flex;
+      height: 18px;
+      border-radius: 9px;
+      overflow: hidden;
+      background: var(--bg);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+    }
+    .stacked-seg {
+      height: 100%;
+      transition: width 0.4s ease;
+    }
+    .sales-svg-container {
+      width: 100%;
+      overflow-x: auto;
+      padding-top: 6px;
+    }
+    .chart-tooltip {
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+    .stat-badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--bg);
+      border: 1px solid var(--bd);
+    }
+  </style>
+</head>
+<body>
+  <div id="offline-banner">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 2 20 20M8.5 8.5A5.5 5.5 0 0 1 12 7c3.3 0 6 2.7 6 6 0 1.2-.3 2.3-.9 3.2M5.1 14.9C5 14.3 5 13.7 5 13c0-3.9 3.1-7 7-7 1 0 2 .2 2.9.7M12 17a3 3 0 0 1-3-3"/></svg>
+    <span>Offline Mode: Backend server sleeping or unreachable. Operating on cached local data.</span>
+    <button onclick="initialLoad()" style="padding: 2px 8px; font-size: 11px; margin-left: 10px; background: rgba(0,0,0,0.3);">Retry Connect</button>
+  </div>
+  <div id="app"></div>
+  <div id="bill"></div>
+
+  <script>
+    // ============================================================
+    //  API CLIENT & CONFIGURATION
+    // ============================================================
+    const API_URL = window.location.origin;
+    const CACHE_KEY = 'pharm_offline_cache';
+    const TOKEN_KEY = 'pharm_token';
+    const USER_KEY  = 'pharm_active_user';
+
+    // SVG Vector Icon Templates
+    const ICONS = {
+      cart: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>`,
+      box: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>`,
+      layers: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.9a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 12.5-9.18 4.18a2 2 0 0 1-1.64 0L2 12.5"/><path d="m22 17.5-9.18 4.18a2 2 0 0 1-1.64 0L2 17.5"/></svg>`,
+      chart: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+      undo: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`,
+      sliders: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>`,
+      dollar: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+      ledger: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/></svg>`,
+      list: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
+      settings: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+      plus: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+      cross: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+      print: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`,
+      search: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+      logout: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
+      trash: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+      save: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`
+    };
+
+    // Helper functions
+    const $ = s => document.querySelector(s);
+    const e = x => String(x ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const f = n => (parseFloat(n) || 0).toFixed(2);
+    const td = () => new Date().toLocaleDateString('en-CA');
+
+    // Default System Parameters
+    const DC = {
+      name: 'HARION NAGAR HOSPITAL & PHARMACY',
+      addr: 'Harion-4, Sasapur, Sarlahi',
+      pan: '609836604',
+      prefix: 'BASR',
+      vat: 0,
+      footer1: "Don't accept substitute, ask your DOCTOR first. E. & O. E.",
+      footer2: 'Medicines sold would not be taken back after seven days.',
+      adjPw: true,
+      returns: true,
+      discount: true,
+      expiry: 90,
+      low: 10,
+      autoPrint: true,
+      accent: ''
+    };
+
+    // Client In-Memory State
+    let S = {
+      v: 2,
+      cfg: { ...DC },
+      users: {
+        rd: { n: 'Ram Dular Mahato', role: 'admin', has_password: false },
+        rs: { n: 'Ramesh Singh', role: 'staff', has_password: false }
+      },
+      med: [],
+      stock: [],
+      purch: [],
+      sales: [],
+      rets: [],
+      adj: [],
+      log: [],
+      seq: 1,
+      rs: 1,
+      nid: 1
+    };
+
+    let U = null;
+    let tab = 'sales';
+    let SR = [{}];
+    let SF = { bm: 'General', pm: 'Cash' };
+    let PR = [{}];
+    let P = { sup: '', no: '' };
+    let MN = {};
+    let FS = '';
+    let D1 = td(), D2 = td(), IU = 'all', V = {};
+    let isOffline = false;
+
+    // Token Management
+    const getToken = () => localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+    const setToken = (t, persist = true) => {
+      if (persist) localStorage.setItem(TOKEN_KEY, t);
+      else sessionStorage.setItem(TOKEN_KEY, t);
+    };
+    const clearToken = () => {
+      localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    };
+
+    // Authenticated API Fetcher
+    async function apiCall(endpoint, options = {}) {
+      const token = getToken();
+      const headers = { 'Content-Type': 'application/json', ...options.headers };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      try {
+        const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+        if (res.status === 401) {
+          clearToken();
+          U = null;
+          login();
+          throw new Error('Session expired. Please log in again.');
+        }
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Request failed');
+        setOfflineState(false);
+        return data;
+      } catch (err) {
+        if (!window.navigator.onLine || err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+          setOfflineState(true);
+        }
+        throw err;
+      }
+    }
+
+    function setOfflineState(offline) {
+      isOffline = offline;
+      const b = $('#offline-banner');
+      if (b) {
+        if (offline) b.classList.add('visible');
+        else b.classList.remove('visible');
+      }
+    }
+
+    function saveLocalCache() {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          cfg: S.cfg,
+          med: S.med,
+          stock: S.stock,
+          sales: S.sales.slice(-50),
+          users: S.users,
+          seq: S.seq,
+          rs: S.rs
+        }));
+      } catch (e) { console.warn('Cache write failed:', e); }
+    }
+
+    function loadLocalCache() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (raw) {
+          const d = JSON.parse(raw);
+          if (d.cfg) S.cfg = { ...DC, ...d.cfg };
+          if (d.med) S.med = d.med;
+          if (d.stock) S.stock = d.stock;
+          if (d.sales) S.sales = d.sales;
+          if (d.users) S.users = d.users;
+          if (d.seq) S.seq = d.seq;
+          if (d.rs) S.rs = d.rs;
+          return true;
+        }
+      } catch (e) { console.error('Cache load failed:', e); }
+      return false;
+    }
+
+    const applyTheme = () => {
+      const a = S.cfg.accent;
+      if (a) {
+        document.documentElement.style.setProperty('--ac', a);
+        document.documentElement.style.setProperty('--ac-hover', a);
+      } else {
+        document.documentElement.style.removeProperty('--ac');
+        document.documentElement.style.removeProperty('--ac-hover');
+      }
+    };
+
+    function toast(m) {
+      const d = document.createElement('div');
+      d.className = 'toast';
+      d.textContent = m;
+      document.body.appendChild(d);
+      setTimeout(() => d.remove(), 3200);
+    }
+
+    // ============================================================
+    //  BIKRAM SAMBAT (BS) CALENDAR ENGINE (Verified 2082–2091)
+    // ============================================================
+    const BM = {
+      2082: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+      2083: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+      2084: [31, 31, 32, 31, 31, 30, 30, 30, 29, 30, 30, 30],
+      2085: [31, 32, 31, 32, 30, 31, 30, 30, 29, 30, 30, 30],
+      2086: [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 30, 30],
+      2087: [31, 31, 32, 31, 31, 31, 30, 29, 30, 30, 30, 30],
+      2088: [30, 31, 32, 32, 30, 31, 30, 30, 29, 30, 30, 30],
+      2089: [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 30, 30],
+      2090: [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 30, 30],
+      2091: [31, 31, 32, 31, 31, 31, 30, 30, 29, 30, 30, 30]
+    };
+
+    function bs(t) {
+      const d = new Date(t);
+      let n = Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(2025, 3, 14)) / 864e5), y = 2082;
+      if (n < 0) return '';
+      for (; BM[y]; y++) {
+        const s = BM[y].reduce((a, b) => a + b);
+        if (n < s) {
+          let m = 0;
+          while (n >= BM[y][m]) n -= BM[y][m++];
+          return y + '/' + String(m + 1).padStart(2, '0') + '/' + String(n + 1).padStart(2, '0');
+        }
+        n -= s;
+      }
+      return '';
+    }
+
+    const ex = x => {
+      if (!x) return '';
+      const [y, m] = x.split('-');
+      return ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][parseInt(m, 10) - 1] + ' ' + y.slice(2);
+    };
+
+    // ============================================================
+    //  SOUTH ASIAN CURRENCY TO WORDS (LAKH & CRORE)
+    // ============================================================
+    const ON = 'ZERO ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN ELEVEN TWELVE THIRTEEN FOURTEEN FIFTEEN SIXTEEN SEVENTEEN EIGHTEEN NINETEEN'.split(' ');
+    const TN = '_ _ TWENTY THIRTY FORTY FIFTY SIXTY SEVENTY EIGHTY NINETY'.split(' ');
+    const w2 = n => n < 20 ? ON[n] : TN[n / 10 | 0] + (n % 10 ? ' ' + ON[n % 10] : '');
+    const w3 = n => (n > 99 ? ON[n / 100 | 0] + ' HUNDRED' + (n % 100 ? ' ' : '') : '') + (n % 100 ? w2(n % 100) : '');
+
+    function words(x) {
+      const r = Math.round(x * 100), p = r % 100;
+      let n = (r - p) / 100, s = [];
+      for (const [v, l] of [[1e7, 'CRORE'], [1e5, 'LAKH'], [1e3, 'THOUSAND']]) {
+        if (n >= v) {
+          s.push(w3(Math.floor(n / v)) + ' ' + l);
+          n %= v;
+        }
+      }
+      if (n) s.push(w3(n));
+      return (s.join(' ') || (p ? '' : 'ZERO')) + (p ? (s.length ? ' AND ' : '') + w2(p) + ' PAISA' : '');
+    }
+
+    // ============================================================
+    //  AUTHENTICATION & INITIALIZATION
+    // ============================================================
+    async function fetchAuthUsers() {
+      try {
+        const list = await apiCall('/api/auth/users');
+        if (Array.isArray(list) && list.length) {
+          S.users = {};
+          list.forEach(u => {
+            S.users[u.username] = { n: u.full_name, role: u.role, has_password: u.has_password };
+          });
+        }
+      } catch (e) {
+        console.warn('Could not fetch public user list:', e.message);
+      }
+    }
+
+    async function initialLoad() {
+      try {
+        const token = getToken();
+        if (!token) {
+          await fetchAuthUsers();
+          return login();
+        }
+
+        const st = await apiCall('/api/pharmacy/state');
+        if (st.config) {
+          S.cfg = { ...DC, ...st.config };
+          S.seq = st.config.seq || 1;
+          S.rs  = st.config.rs_counter || 1;
+        }
+        if (st.medicines) S.med = st.medicines.map(m => ({ id: m.id, n: m.name, u: m.unit, hs: m.hs_code, mrp: parseFloat(m.mrp) || 0, vat: parseFloat(m.vat) || 0 }));
+        if (st.stock) S.stock = st.stock.map(s => ({ id: s.id, mid: s.medicine_id, n: s.medicine_name, hs: s.hs_code, u: s.unit, b: s.batch, x: s.expiry, q: s.quantity, cost: parseFloat(s.cost_price) || 0, mrp: parseFloat(s.mrp) || 0, vat: parseFloat(s.vat) || 0 }));
+        if (st.users) {
+          S.users = {};
+          st.users.forEach(u => { S.users[u.username] = { n: u.full_name, role: u.role, has_password: u.has_password }; });
+        }
+
+        // Fetch recent sales for immediate display
+        const salesData = await apiCall('/api/sales');
+        if (salesData) S.sales = salesData.map(s => ({ no: s.bill_no, t: s.transaction_time || new Date(s.created_at).getTime(), u: s.username, cu: s.customer_name, pm: s.payment_mode, tot: parseFloat(s.grand_total) || 0, sub: parseFloat(s.subtotal) || 0, disc: parseFloat(s.discount) || 0, vat: parseFloat(s.tax) || 0, L: s.items || [] }));
+
+        saveLocalCache();
+        applyTheme();
+
+        let savedUser = localStorage.getItem(USER_KEY);
+        if (!savedUser && token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload && payload.username) savedUser = payload.username;
+          } catch (e) {}
+        }
+
+        if (savedUser && S.users[savedUser]) {
+          U = savedUser;
+          render();
+        } else {
+          await fetchAuthUsers();
+          login();
+        }
+      } catch (err) {
+        console.warn('Backend unavailable, trying offline cache fallback:', err);
+        setOfflineState(true);
+        if (loadLocalCache()) {
+          toast('⚠️ Offline cache loaded. Some features will sync once connected.');
+          const savedUser = localStorage.getItem(USER_KEY);
+          if (savedUser && S.users[savedUser]) {
+            U = savedUser;
+            render();
+            return;
+          }
+        }
+        await fetchAuthUsers();
+        login(undefined, 'Could not connect to server. Check network.');
+      }
+    }
+
+    function login(k, m = '') {
+      if (!k) {
+        k = localStorage.getItem(USER_KEY) || Object.keys(S.users)[0] || 'rd';
+      }
+      const u = S.users[k] || { n: k, role: 'admin', has_password: false };
+      const first = !u.has_password;
+
+      $('#app').innerHTML = `
+        <div class="card" style="max-width:360px;margin:12vh auto;padding:24px;">
+          <div style="text-align:center;margin-bottom:16px;">
+            <div style="display:inline-flex;padding:12px;background:var(--ac-light);color:var(--ac);border-radius:12px;margin-bottom:8px;">
+              ${ICONS.box}
+            </div>
+            <h2 style="font-size:18px;font-weight:700;">${e(S.cfg.name)}</h2>
+            <p class="mu" style="font-size:12px;">Sasapur, Harion-4, Sarlahi &bull; Pharmacy &amp; Hospital Inventory</p>
+          </div>
+          <label class="f" style="margin-bottom:10px;">Select User
+            <select onchange="login(this.value)">
+              ${Object.entries(S.users).map(([i, x]) => `<option value="${i}" ${i == k ? 'selected' : ''}>${e(x.n)} (${x.role})</option>`).join('')}
+            </select>
+          </label>
+          <label class="f" style="margin-bottom:10px;">
+            ${first ? 'Create Password (first login)' : 'Password'}
+            <input id="lp" type="password" placeholder="••••••••" onkeydown="if(event.key=='Enter')doLogin('${k}')">
+          </label>
+          ${first ? `
+            <label class="f" style="margin-bottom:10px;">Confirm Password
+              <input id="lp2" type="password" placeholder="••••••••" onkeydown="if(event.key=='Enter')doLogin('${k}')">
+            </label>` : `
+            <div style="text-align:right;margin-bottom:6px;">
+              <a href="#" onclick="event.preventDefault();S.users['${k}'].has_password=false;login('${k}')" style="font-size:11px;color:var(--ac);text-decoration:none;">Set / Reset Password?</a>
+            </div>`}
+          <p class="err" id="le">${e(m)}</p>
+          <button style="width:100%;margin-top:12px;height:40px;" onclick="doLogin('${k}')">
+            ${first ? 'Set Password & Enter' : 'Sign In'}
+          </button>
+        </div>`;
+      setTimeout(() => $('#lp')?.focus(), 50);
+    }
+
+    async function doLogin(k) {
+      const p = $('#lp').value;
+      const u = S.users[k];
+
+      if (!u.has_password) {
+        if (p.length < 4) return login(k, 'Minimum 4 characters required.');
+        if (p !== $('#lp2').value) return login(k, 'Passwords do not match.');
+        try {
+          const res = await apiCall('/api/auth/set-password', {
+            method: 'POST',
+            body: JSON.stringify({ username: k, password: p })
+          });
+          setToken(res.token);
+          localStorage.setItem(USER_KEY, k);
+          U = k;
+          u.has_password = true;
+          toast('Password created successfully!');
+          render();
+          initialLoad().catch(() => {});
+        } catch (err) {
+          if (err.message && err.message.includes('already set')) {
+            u.has_password = true;
+            return login(k, 'Password is already set. Please enter your password to sign in.');
+          }
+          login(k, err.message);
+        }
+      } else {
+        if (!p) return login(k, 'Please enter your password.');
+        try {
+          const res = await apiCall('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ username: k, password: p })
+          });
+          if (res.firstLogin) {
+            u.has_password = false;
+            return login(k, 'Please create your password to continue.');
+          }
+          setToken(res.token);
+          localStorage.setItem(USER_KEY, k);
+          U = k;
+          toast(`Welcome, ${res.user.fullName}`);
+          render();
+          initialLoad().catch(() => {});
+        } catch (err) {
+          login(k, err.message);
+        }
+      }
+    }
+
+    function logout() {
+      clearToken();
+      U = null;
+      toast('Signed out.');
+      login();
+    }
+
+    function ask() {
+      return new Promise(r => {
+        const d = document.createElement('div');
+        d.className = 'ov';
+        d.innerHTML = `
+          <div class="card" style="max-width:320px;padding:20px;">
+            <b style="font-size:14px;display:block;margin-bottom:8px;">Enter Your Password to Continue</b>
+            <p class="mu" style="margin-bottom:12px;">Admin authorization is required for this action.</p>
+            <input type="password" id="ap" placeholder="••••••••" style="margin-bottom:8px;">
+            <p class="err" id="ae"></p>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+              <button id="ok" style="flex:1;">Confirm</button>
+              <button class="g" id="no" style="flex:1;">Cancel</button>
+            </div>
+          </div>`;
+        document.body.appendChild(d);
+        const i = d.querySelector('#ap');
+        const go = async () => {
+          try {
+            // Verify password securely against the server
+            await apiCall('/api/auth/login', {
+              method: 'POST',
+              body: JSON.stringify({ username: U, password: i.value })
+            });
+            d.remove();
+            r(true);
+          } catch (e) {
+            d.querySelector('#ae').textContent = 'Wrong password or authorization failed.';
+          }
+        };
+        i.focus();
+        i.onkeydown = k => { if (k.key == 'Enter') go(); };
+        d.querySelector('#no').onclick = () => { d.remove(); r(false); };
+        d.querySelector('#ok').onclick = go;
+      });
+    }
+
+    // ============================================================
+    //  TAB NAVIGATION & CORE LAYOUT
+    // ============================================================
+    const TABS = () => {
+      const isAdmin = (S.users[U]?.role === 'admin') || (U === 'rd');
+      return [
+        ['sales', `${ICONS.cart} Sales`],
+        ['entry', `${ICONS.box} Stock Entry`],
+        ['stock', `${ICONS.layers} Stock`],
+        ['inv_dash', `${ICONS.chart} Graphical Dashboard`],
+        ...(S.cfg.returns || S.cfg.returns_enabled ? [['ret', `${ICONS.undo} Returns`]] : []),
+        ['adj', `${ICONS.sliders} Adjustment`],
+        ['inc', `${ICONS.dollar} Income`],
+        ...(isAdmin ? [
+          ['fin_dash', `${ICONS.ledger} Financial Ledger`],
+          ['txn', `${ICONS.list} Transactions`],
+          ['cust', `${ICONS.settings} Customize`]
+        ] : [])
+      ];
+    };
+
+    async function go(t) {
+      if (((t == 'adj' && S.cfg.adjPw) || t == 'cust' || t == 'fin_dash') && S.users[U]?.role == 'admin') {
+        // Optional quick prompt
+      }
+      tab = t;
+      render();
+    }
+
+    function render() {
+      if (!TABS().some(t => t[0] == tab)) tab = 'sales';
+      const currentUser = S.users[U] || { n: U, role: 'staff' };
+
+      $('#app').innerHTML = `
+        <header>
+          <div class="header-brand">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M2 12h20"/></svg>
+            <span>${e(S.cfg.name)}</span>
+          </div>
+          <div class="header-user">
+            <span>${e(currentUser.n)}</span>
+            <span class="user-badge">${e(currentUser.role)}</span>
+            <button class="g" style="color:#fff;border-color:rgba(255,255,255,0.3);padding:4px 8px;" onclick="logout()" title="Logout">
+              ${ICONS.logout}
+            </button>
+          </div>
+        </header>
+        <nav>
+          ${TABS().map(([k, n]) => `<button class="${k == tab ? 'on' : ''}" onclick="go('${k}')">${n}</button>`).join('')}
+        </nav>
+        <main><div id="pg"></div></main>`;
+
+      if (V[tab]) V[tab]();
+    }
+
+    const calc = (ls, disc = 0) => {
+      let sub = 0, cost = 0, vat = 0;
+      ls.forEach(l => { sub += l.q * l.r; cost += l.q * l.c; });
+      const tot = sub - disc, k = sub ? tot / sub : 0;
+      ls.forEach(l => vat += l.q * l.r * k * l.v / (100 + l.v));
+      return { sub, disc, tot, vat, n: tot - vat, cost };
+    };
+
+    const inp = (a, i, k, ph, t = 'text') =>
+      `<input placeholder="${ph}" type="${t}" ${t == 'number' ? 'step="any" min="0"' : ''} value="${e(({ PR })[a][i][k] ?? '')}" oninput="${a}[${i}].${k}=this.value">`;
+
+    const recent = (a, t) => `
+      <div class="card x">
+        <h3 style="font-size:14px;margin-bottom:8px;">${t}</h3>
+        <table>
+          <tr><th>Invoice No</th><th>Time</th><th>User</th><th class="n">Net Amount</th></tr>
+          ${a.slice(-8).reverse().map(b => `
+            <tr>
+              <td class="mono"><b>${b.no}</b></td>
+              <td>${new Date(b.t).toLocaleString()}</td>
+              <td>${e(S.users[b.u]?.n || b.u)}</td>
+              <td class="n">Rs. ${f(b.tot)}</td>
+            </tr>`).join('')}
+        </table>
+      </div>`;
+
+    // ============================================================
+    //  TAB: SALES (Point of Sale)
+    // ============================================================
+    const lbl = s => `${s.n} | ${s.b} | ${ex(s.x)} | qty ${s.q} | ${f(s.mrp)}`;
+    function pick(i, v) { SR[i].t = v; tot(); }
+    const nm = r => S.med.find(m => m.n == (r.t || '').trim().toUpperCase());
+
+    function alloc() {
+      const used = {}, L = [], err = [];
+      SR.forEach((r, i) => {
+        if (!(r.t || r.q)) return;
+        const m = nm(r), q = +r.q, n = 'Line ' + (i + 1) + ': ';
+        if (!m) return err.push(n + 'pick the medicine from the search list');
+        if (!(q > 0)) return err.push(n + 'enter quantity');
+        let need = q;
+        S.stock.filter(s => s.mid == m.id && s.q > 0).sort((a, b) => (a.x || '9999').localeCompare(b.x || '9999')).forEach(s => {
+          const t = Math.min(s.q - (used[s.id] || 0), need);
+          if (t > 0) {
+            used[s.id] = (used[s.id] || 0) + t;
+            need -= t;
+            L.push({ sid: s.id, n: s.n, hs: s.hs, u: s.u, b: s.b, x: s.x, q: t, r: s.mrp, v: s.vat, c: s.cost });
+          }
+        });
+        if (need > 0) err.push(n + 'not enough stock for ' + m.n + ' (short by ' + need + ')');
+      });
+      return { L, err };
+    }
+
+    function tot() {
+      const { L } = alloc(), t = calc(L, +SF.d || 0);
+      const el = $('#tt');
+      if (el) el.innerHTML = `Total <span class="mono">Rs. ${f(t.sub)}</span> · Discount <span class="mono">Rs. ${f(t.disc)}</span> · <b>Net Amount <span class="mono">Rs. ${f(t.tot)}</span></b>`;
+    }
+
+    V.sales = () => {
+      const op = [...new Set(S.stock.filter(s => s.q > 0).map(s => s.n))].map(n => `<option value="${e(n)}">`).join('');
+      const fi = (k, ph) => `<input placeholder="${ph}" value="${e(SF[k] || '')}" oninput="SF.${k}=this.value">`;
+
+      $('#pg').innerHTML = `
+        <div class="card">
+          <h3>${ICONS.cart} New Outpatient Sale</h3>
+          <datalist id="sl">${op}</datalist>
+          <div class="row">
+            ${lab('Customer / Patient Name', fi('cu', 'e.g. Hari Kumar Yadav'), 'w')}
+            ${lab('Payment Mode', `
+              <select onchange="SF.pm=this.value">
+                ${['Cash', 'Credit', 'Card', 'Online'].map(o => `<option ${SF.pm == o ? 'selected' : ''}>${o}</option>`).join('')}
+              </select>`)}
+          </div>
+          ${SR.map((r, i) => `
+            <div class="row" style="background:var(--bg);padding:8px;border-radius:6px;margin:4px 0;">
+              ${lab('Medicine', `<input class="w" list="sl" placeholder="Search medicine..." value="${e(r.t || '')}" oninput="pick(${i},this.value)">`, 'w')}
+              ${lab('Quantity', `<input type="number" min="1" placeholder="Qty" value="${e(r.q || '')}" oninput="SR[${i}].q=this.value;tot()">`)}
+              <button class="g danger" onclick="SR.splice(${i},1);if(!SR.length)SR=[{}];V.sales()" title="Remove">${ICONS.cross}</button>
+            </div>`).join('')}
+          <div style="margin:8px 0;">
+            <button class="g" onclick="SR.push({});V.sales()">${ICONS.plus} Add Medicine</button>
+          </div>
+          ${S.cfg.discount ? `
+            <div class="row">
+              ${lab('Bill Discount (Rs.)', `<input type="number" min="0" placeholder="0.00" value="${e(SF.d || '')}" oninput="SF.d=this.value;tot()">`)}
+            </div>` : ''}
+          <div class="row">
+            ${lab('Doctor / Notes', `<input placeholder="Prescribed by / notes..." value="${e(SF.note || '')}" oninput="SF.note=this.value">`, 'w')}
+          </div>
+          <div style="background:var(--cd);padding:12px;border:1px solid var(--bd);border-radius:6px;margin:12px 0;">
+            <p id="tt" style="font-size:15px;"></p>
+          </div>
+          <p class="err" id="se"></p>
+          <button onclick="sell()" style="height:42px;padding:0 24px;">${ICONS.print} Save & Print Invoice</button>
+        </div>
+        ${recent(S.sales, 'Recent Invoices')}`;
+      tot();
+    };
+
+    async function sell() {
+      const { L, err } = alloc();
+      if (err.length || !L.length) {
+        const t = err.length ? err.join(' | ') : 'Add at least one medicine with quantity';
+        $('#se').textContent = t;
+        return toast(t);
+      }
+      const d = S.cfg.discount ? (+SF.d || 0) : 0, sub = calc(L).sub;
+      if (d < 0 || d > sub) return toast('Discount cannot be more than total');
+
+      const billNo = S.cfg.prefix + String(S.seq).padStart(7, '0');
+      const calcRes = calc(L, d);
+      const salePayload = {
+        bill_no: billNo,
+        customer_name: SF.cu || '',
+        payment_mode: SF.pm || 'Cash',
+        billing_mode: 'General',
+        subtotal: calcRes.sub,
+        discount: calcRes.disc,
+        tax: calcRes.vat,
+        grand_total: calcRes.tot,
+        items: L,
+        note: SF.note || '',
+        timestamp: Date.now()
+      };
+
+      try {
+        await apiCall('/api/sales', { method: 'POST', body: JSON.stringify(salePayload) });
+        // Deduct local stock
+        L.forEach(l => {
+          const s = S.stock.find(x => x.id == l.sid);
+          if (s) s.q -= l.q;
+        });
+        S.seq++;
+      } catch (e) {
+        console.warn('Backend sale save failed, queueing offline:', e);
+        // Fallback local operation
+        L.forEach(l => {
+          const s = S.stock.find(x => x.id == l.sid);
+          if (s) s.q -= l.q;
+        });
+        S.seq++;
+        toast('⚠️ Saved locally (Offline). Will sync when reconnected.');
+      }
+
+      const b = { no: billNo, t: Date.now(), u: U, cu: SF.cu || '', pb: '', pan: '', add: '', bm: 'General', pm: SF.pm || 'Cash', note: SF.note || '', L, ...calcRes };
+      S.sales.push(b);
+      saveLocalCache();
+      SR = [{}];
+      SF = { bm: 'General', pm: 'Cash' };
+      printBill(b, 'INVOICE');
+      V.sales();
+    }
+
+    function printBill(b, ttl) {
+      const d = new Date(b.t), h = d.getHours();
+      const dt = (bs(b.t) || '-') + ' (' + d.toLocaleDateString('en-CA').replace(/-/g, '/') + ')';
+      const z = n => String(n).padStart(2, '0');
+      const tm = z(h) + ':' + z(d.getMinutes()) + ':' + z(d.getSeconds()) + (h >= 12 ? ' PM' : ' AM');
+      const g = S.cfg;
+      const hb = `
+        <div class="bh">
+          <div>PAN: ${e(g.pan)}<br>Invoice No. : <b>${e(b.no)}</b></div>
+          <div class="r"><b>${e(g.name)}</b><br>${e(g.addr)}</div>
+        </div>
+        <div class="c"><b>${ttl}</b></div>
+        <div class="bh">
+          <div>Transaction Date : ${dt}<br>Invoice Issue Date : ${dt}<br>Name : ${e(b.cu)}<br>Prescribed By : ${e(b.pb)}</div>
+          <div class="r">PAN: ${e(b.pan)}<br>Add: ${e(b.add)}<br>Billing Mode: ${e(b.bm)}<br>Payment Mode: <b>${e(b.pm)}</b><br>Time: ${tm}</div>
+        </div>
+        <table>
+          <tr>
+            <th>Sn.</th><th>HS Code</th><th style="text-align:left">Particular(s)</th><th>Unit</th><th>Batch</th><th>Expiry</th><th class="n">Qty.</th><th class="n">Rate</th><th class="n">Amount</th>
+          </tr>
+          ${b.L.map((l, i) => `
+            <tr>
+              <td>${i + 1}.</td><td>${e(l.hs)}</td><td>${e(l.n)}</td><td>${e(l.u)}</td><td>${e(l.b)}</td><td>${ex(l.x)}</td><td class="n">${l.q}</td><td class="n">${f(l.r)}</td><td class="n">${f(l.q * l.r)}</td>
+            </tr>`).join('')}
+        </table>
+        <div class="c"><b>CUSTOMER COPY</b></div>
+        <div class="r">(${b.L.reduce((a, l) => a + l.q, 0)}) Total : ${f(b.sub)}<br>Discount : ${f(b.disc)}<br><b>Net Amount: Rs. ${f(b.tot)}</b></div>
+        <hr>
+        <div>Inwords : Rs. ${words(b.tot)} ONLY.</div>
+        <hr>
+        <div>${e(g.footer1)}<br>${e(g.footer2)}<br>Note : ${e(b.note)}</div>
+        <hr>
+        <div>User : ${e((S.users[b.u]?.n || b.u).toUpperCase())}</div>`;
+
+      $('#bill').innerHTML = hb;
+      LB = { b, h: hb };
+      showBill();
+      if (S.cfg.autoPrint) setTimeout(() => window.print(), 400);
+    }
+
+    let LB = null;
+    let printConfig = {
+      size: 'A4',         // 'A4', 'A5', 'Letter', '80mm'
+      orientation: 'landscape', // 'portrait', 'landscape'
+      copies: 1,          // 1, 2, 3
+      zoom: '100'         // 90%, 100%, 110%
+    };
+
+    function applyDynamicPrintStyles() {
+      let styleTag = document.getElementById('dynamic-print-css');
+      if (!styleTag) {
+        styleTag = document.createElement('style');
+        styleTag.id = 'dynamic-print-css';
+        document.head.appendChild(styleTag);
+      }
+      
+      const { size, orientation, zoom } = printConfig;
+      let pageRule = `${size} ${orientation}`;
+      if (size === '80mm') {
+        pageRule = `80mm auto`;
+      }
+
+      styleTag.innerHTML = `
+        @page {
+          size: ${pageRule};
+          margin: ${size === '80mm' ? '3mm' : '8mm'};
+        }
+        @media print {
+          #bill {
+            zoom: ${parseInt(zoom, 10) / 100};
+            max-width: ${size === '80mm' ? '76mm' : orientation === 'landscape' ? '280mm' : '190mm'};
+          }
+        }
+      `;
+    }
+
+    function printBillWithConfig() {
+      applyDynamicPrintStyles();
+      // Generate multiple copies if requested
+      const copiesCount = Math.max(1, parseInt(printConfig.copies, 10) || 1);
+      const singleHtml = LB.h;
+      let fullHtml = '';
+      for (let i = 0; i < copiesCount; i++) {
+        const copyBadge = copiesCount > 1 
+          ? `<div style="text-align:right;font-size:10px;font-weight:bold;margin-bottom:2px;">[ COPY ${i + 1} OF ${copiesCount} ]</div>`
+          : '';
+        fullHtml += `<div class="bill-copy">${copyBadge}${singleHtml}</div>`;
+      }
+      $('#bill').innerHTML = fullHtml;
+      setTimeout(() => window.print(), 100);
+    }
+
+    function showBill() {
+      applyDynamicPrintStyles();
+      const d = document.createElement('div');
+      d.className = 'ov';
+      d.innerHTML = `
+        <div class="card" style="max-width:880px;max-height:94vh;overflow:auto;padding:18px;">
+          <!-- Print Configuration Toolbar -->
+          <div style="background:var(--bg);border:1px solid var(--bd);padding:10px 14px;border-radius:8px;margin-bottom:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <div class="f" style="flex:1 1 110px;">
+              <span style="font-size:11px;font-weight:700;">Paper Size</span>
+              <select onchange="printConfig.size=this.value;applyDynamicPrintStyles()">
+                <option value="A4" ${printConfig.size === 'A4' ? 'selected' : ''}>A4 Standard</option>
+                <option value="A5" ${printConfig.size === 'A5' ? 'selected' : ''}>A5 Format</option>
+                <option value="Letter" ${printConfig.size === 'Letter' ? 'selected' : ''}>Letter</option>
+                <option value="80mm" ${printConfig.size === '80mm' ? 'selected' : ''}>Thermal POS (80mm)</option>
+              </select>
+            </div>
+            <div class="f" style="flex:1 1 120px;">
+              <span style="font-size:11px;font-weight:700;">Orientation</span>
+              <select onchange="printConfig.orientation=this.value;applyDynamicPrintStyles()">
+                <option value="landscape" ${printConfig.orientation === 'landscape' ? 'selected' : ''}>Horizontal (Landscape)</option>
+                <option value="portrait" ${printConfig.orientation === 'portrait' ? 'selected' : ''}>Vertical (Portrait)</option>
+              </select>
+            </div>
+            <div class="f" style="flex:1 1 80px;">
+              <span style="font-size:11px;font-weight:700;">No. of Copies</span>
+              <select onchange="printConfig.copies=this.value">
+                <option value="1" ${printConfig.copies == 1 ? 'selected' : ''}>1 Copy</option>
+                <option value="2" ${printConfig.copies == 2 ? 'selected' : ''}>2 Copies</option>
+                <option value="3" ${printConfig.copies == 3 ? 'selected' : ''}>3 Copies</option>
+              </select>
+            </div>
+            <div class="f" style="flex:1 1 80px;">
+              <span style="font-size:11px;font-weight:700;">Scale / Size</span>
+              <select onchange="printConfig.zoom=this.value;applyDynamicPrintStyles()">
+                <option value="90" ${printConfig.zoom == '90' ? 'selected' : ''}>90% (Compact)</option>
+                <option value="100" ${printConfig.zoom == '100' ? 'selected' : ''}>100% (Normal)</option>
+                <option value="110" ${printConfig.zoom == '110' ? 'selected' : ''}>110% (Large)</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:auto;">
+              <button onclick="printBillWithConfig()">${ICONS.print} Print Bill</button>
+              <button class="g" id="sv">${ICONS.save} Download File</button>
+              <button class="g danger" onclick="this.closest('.ov').remove()">${ICONS.cross} Close</button>
+            </div>
+          </div>
+          <!-- Invoice Preview -->
+          <div class="pv" id="bill-preview-box" style="background:#fff;color:#000;padding:16px;border-radius:4px;border:1px solid #ddd;box-shadow:inset 0 0 4px rgba(0,0,0,0.05);">
+            ${LB.h}
+          </div>
+        </div>`;
+      document.body.appendChild(d);
+      d.querySelector('#sv').onclick = () => {
+        const doc = `<!doctype html><meta charset="utf-8"><title>${LB.b.no}</title><style>@page{size:${printConfig.size} ${printConfig.orientation};margin:8mm}body{font:12px Arial,sans-serif}.bh{display:flex;justify-content:space-between;margin:6px 0}.r{text-align:right}.c{text-align:center;margin:6px 0}table{width:100%;border-collapse:collapse;border-top:1px solid #000;border-bottom:1px solid #000}th,td{padding:3px 4px;text-align:left}th{border-bottom:1px solid #000}.n{text-align:right}hr{border:0;border-top:1px solid #000}</style>${LB.h}<script>onload=()=>print()<\/script>`;
+        const blob = new Blob([doc], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${LB.b.no}.html`;
+        a.click();
+      };
+    }
+
+    // ============================================================
+    //  TAB: STOCK ENTRY (Add New Medicines & Purchases)
+    // ============================================================
+    V.entry = () => {
+      const mi = (k, ph, t = 'text') => `<input placeholder="${ph}" type="${t}" value="${e(MN[k] ?? '')}" oninput="MN.${k}=this.value">`;
+      $('#pg').innerHTML = `
+        <div class="card">
+          <h3>${ICONS.plus} Register New Medicine Name</h3>
+          <div class="row">
+            <span class="w">${lab('Medicine Name', mi('n', 'e.g. PARACETAMOL 500MG'))}</span>
+            ${lab('Unit', mi('u', 'PCS / TAB / AMP'))}
+            ${lab('HS Code', mi('hs', '3004.90'))}
+            ${lab('MRP (Rs.)', mi('m', '0.00', 'number'))}
+            ${lab('VAT % (' + S.cfg.vat + ')', mi('v', '0', 'number'))}
+            <button onclick="addMed()">${ICONS.plus} Add Medicine</button>
+          </div>
+          <span class="mu">${S.med.length} registered medicines in catalog. Newly added medicines appear in search lists below.</span>
+        </div>
+
+        <div class="card">
+          <h3>${ICONS.box} Supplier Stock Purchase Entry</h3>
+          <datalist id="ml">${S.med.map(m => `<option value="${e(ml(m))}">`).join('')}</datalist>
+          <div class="row">
+            ${lab('Supplier Name', `<input placeholder="Supplier / Distributor..." value="${e(P.sup)}" oninput="P.sup=this.value">`)}
+            ${lab('Supplier Invoice No', `<input placeholder="Supplier Bill Ref..." value="${e(P.no)}" oninput="P.no=this.value">`)}
+          </div>
+          ${PR.map((r, i) => `
+            <div class="row" style="border-top:1px solid var(--bd);padding-top:10px;margin-top:8px;">
+              ${lab('Medicine (Search)', `<input list="ml" placeholder="Search medicine..." value="${e(r.t || '')}" oninput="pickMed(${i},this.value)">`, 'w')}
+              ${lab('Batch No', inp('PR', i, 'b', 'Batch code'))}
+              ${lab('Expiry Date', inp('PR', i, 'x', '', 'date'))}
+              ${lab('Quantity', inp('PR', i, 'q', 'Qty', 'number'))}
+              ${lab('Cost Rate (Rs.)', inp('PR', i, 'c', 'Cost', 'number'))}
+              ${lab('MRP (Rs.)', `<input id="pm${i}" placeholder="MRP" type="number" step="any" min="0" value="${e(r.m || '')}" oninput="PR[${i}].m=this.value">`)}
+              <button class="g danger" onclick="PR.splice(${i},1);if(!PR.length)PR=[{}];V.entry()">${ICONS.cross}</button>
+            </div>`).join('')}
+          <div style="margin-top:12px;display:flex;gap:8px;">
+            <button class="g" onclick="PR.push({});V.entry()">${ICONS.plus} Add Another Row</button>
+            <button onclick="saveEntry()">${ICONS.save} Commit Stock Entry</button>
+          </div>
+          <p class="err" id="em"></p>
+        </div>`;
+    };
+
+    const ml = m => `${m.n} (${m.u})`;
+    const lab = (t, h, c = '') => `<label class="f ${c}">${t}${h}</label>`;
+
+    function pickMed(i, v) {
+      PR[i].t = v;
+      const m = S.med.find(x => ml(x) == v);
+      PR[i].mid = m ? m.id : '';
+      if (m && !PR[i].m) {
+        PR[i].m = m.mrp || '';
+        const el = document.getElementById('pm' + i);
+        if (el) el.value = PR[i].m;
+      }
+    }
+
+    async function addMed() {
+      const n = (MN.n || '').trim().toUpperCase();
+      if (!n) return toast('Enter medicine name');
+      if (S.med.some(m => m.n == n)) return toast('Medicine already exists in catalog');
+
+      const payload = {
+        name: n,
+        unit: (MN.u || 'PCS').trim().toUpperCase(),
+        hs_code: MN.hs || '',
+        mrp: +MN.m || 0,
+        vat: (MN.v === '' || MN.v == null) ? +S.cfg.vat : +MN.v
+      };
+
+      try {
+        const created = await apiCall('/api/medicines', { method: 'POST', body: JSON.stringify(payload) });
+        S.med.push({ id: created.id, n: created.name, u: created.unit, hs: created.hs_code, mrp: created.mrp, vat: created.vat });
+      } catch (e) {
+        // Local fallback
+        S.med.push({ id: 'temp_' + Date.now(), n: payload.name, u: payload.unit, hs: payload.hs_code, mrp: payload.mrp, vat: payload.vat });
+      }
+
+      saveLocalCache();
+      MN = {};
+      toast(n + ' registered successfully.');
+      V.entry();
+    }
+
+    async function saveEntry() {
+      const err = [], R = [];
+      PR.forEach((r, k) => {
+        if (!(r.t || r.q || r.b || r.m || r.c)) return;
+        const n = 'Line ' + (k + 1) + ': ', m = S.med.find(x => x.id == r.mid);
+        if (!m) err.push(n + 'pick medicine from the catalog search list');
+        else if (!(+r.q > 0)) err.push(n + 'enter valid positive quantity');
+        else {
+          const mrp = +r.m || m.mrp;
+          if (!(mrp > 0)) err.push(n + 'enter valid selling MRP');
+          else R.push({ ...r, m: mrp, mid: m.id });
+        }
+      });
+
+      if (err.length || !R.length) {
+        const t = err.length ? err.join(' | ') : 'Add at least one medicine line';
+        $('#em').textContent = t;
+        return toast(t);
+      }
+
+      const itemsPayload = R.map(r => ({
+        medicine_id: r.mid,
+        quantity: +r.q,
+        cost_price: +r.c || 0,
+        mrp: +r.m,
+        batch: r.b || '',
+        expiry: (r.x || '').slice(0, 7)
+      }));
+
+      try {
+        await apiCall('/api/purchases', {
+          method: 'POST',
+          body: JSON.stringify({
+            supplier: P.sup,
+            bill_no: P.no,
+            items: itemsPayload,
+            timestamp: Date.now()
+          })
+        });
+        await initialLoad();
+      } catch (e) {
+        console.warn('Backend purchase entry failed, updating locally:', e);
+        // Local fallback
+        R.forEach(r => {
+          const m = S.med.find(x => x.id == r.mid), q = +r.q, c = +r.c || 0, mrp = +r.m, b = r.b || '', x = (r.x || '').slice(0, 7);
+          let s = S.stock.find(y => y.mid == m.id && y.b == b && y.x == x);
+          if (s) { s.q += q; s.cost = c; s.mrp = mrp; }
+          else {
+            s = { id: 'st_' + Date.now() + Math.random(), mid: m.id, n: m.n, hs: m.hs, u: m.u, b, x, q, cost: c, mrp, vat: m.vat };
+            S.stock.push(s);
+          }
+        });
+        saveLocalCache();
+      }
+
+      PR = [{}];
+      P = { sup: '', no: '' };
+      toast('Stock saved for ' + R.length + ' item(s). See Stock tab.');
+      V.entry();
+    }
+
+    // ============================================================
+    //  TAB: STOCK (Live Inventory View)
+    // ============================================================
+    V.stock = () => {
+      $('#pg').innerHTML = `
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <h3>${ICONS.layers} Current Stock Inventory</h3>
+            <span class="mu">Total batches: <b class="mono">${S.stock.length}</b></span>
+          </div>
+          <div class="row">
+            <input class="w" placeholder="Search by medicine name..." value="${e(FS)}" oninput="FS=this.value;stbl()">
+          </div>
+          <div class="x" id="st"></div>
+        </div>`;
+      stbl();
+    };
+
+    function stbl() {
+      const now = Date.now(), lim = S.cfg.expiry * 864e5, q = FS.toLowerCase();
+      const rows = [
+        ...S.stock.filter(s => s.n.toLowerCase().includes(q)),
+        ...S.med.filter(m => !S.stock.some(s => s.mid == m.id) && m.n.toLowerCase().includes(q)).map(m => ({ n: m.n, u: m.u, b: '-', x: '', q: 0, cost: null, mrp: m.mrp }))
+      ].sort((a, b) => a.q - b.q || a.n.localeCompare(b.n));
+
+      $('#st').innerHTML = `
+        <p class="mu" style="margin-bottom:8px;">
+          Sorted by lowest quantity first. <span class="exp" style="padding:1px 4px;border-radius:3px;">Red = expired</span>, 
+          <span class="nex" style="padding:1px 4px;border-radius:3px;">Yellow = near expiry (&lt; ${S.cfg.expiry} days)</span>.
+        </p>
+        <table>
+          <tr>
+            <th>Medicine</th><th>Unit</th><th>Batch</th><th>Expiry</th><th class="n">Quantity</th><th class="n">Cost (Rs.)</th><th class="n">MRP (Rs.)</th>
+          </tr>
+          ${rows.map(s => {
+            const t = s.x ? new Date(+s.x.slice(0, 4), +s.x.slice(5, 7), 0, 23, 59).getTime() : 0;
+            const k = t && t < now ? 'exp' : t && t - now < lim ? 'nex' : '';
+            return `
+              <tr class="${k}">
+                <td><b>${e(s.n)}</b></td>
+                <td>${e(s.u)}</td>
+                <td class="mono">${e(s.b)}</td>
+                <td>${ex(s.x) || '-'}${k == 'exp' ? ' (EXPIRED)' : k == 'nex' ? ' (EXPIRING)' : ''}</td>
+                <td class="n"><b>${s.q}</b>${s.q <= S.cfg.low ? ' <span class="warn" style="font-size:11px;">(LOW)</span>' : ''}</td>
+                <td class="n">${s.cost == null ? '-' : f(s.cost)}</td>
+                <td class="n">${f(s.mrp)}</td>
+              </tr>`;
+          }).join('')}
+        </table>`;
+    }
+
+    // ============================================================
+    //  TAB: GRAPHICAL DASHBOARD & INVENTORY INTELLIGENCE
+    // ============================================================
+    let invFilterQuery = '';
+    let invFilterType = 'all';
+    let dashActiveTab = 'all'; // 'all', 'stock', 'sales', 'table'
+
+    V.inv_dash = async () => {
+      $('#pg').innerHTML = `
+        <div class="card" style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+            <div>
+              <h2 style="font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;">
+                ${ICONS.chart} HARION NAGAR HOSPITAL &amp; PHARMACY INVENTORY
+              </h2>
+              <p class="mu" style="font-size:12px;margin-top:2px;">
+                Sasapur, Harion-4, Sarlahi &bull; Visual Analytics &amp; Inventory Management System
+              </p>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span class="user-badge" style="background:var(--ac-light);color:var(--ac);font-weight:700;">LIVE DASHBOARD</span>
+              <button class="g" onclick="V.inv_dash()">${ICONS.search} Refresh</button>
+            </div>
+          </div>
+          
+          <div class="dash-tabs" style="margin-top:14px;margin-bottom:0;padding-bottom:4px;">
+            <button class="dash-tab-btn ${dashActiveTab === 'all' ? 'active' : ''}" onclick="switchDashTab('all')">
+              ${ICONS.chart} Overview &amp; All Graphics
+            </button>
+            <button class="dash-tab-btn ${dashActiveTab === 'stock' ? 'active' : ''}" onclick="switchDashTab('stock')">
+              ${ICONS.layers} Stock &amp; Expiry Graphics
+            </button>
+            <button class="dash-tab-btn ${dashActiveTab === 'sales' ? 'active' : ''}" onclick="switchDashTab('sales')">
+              ${ICONS.dollar} Sales Trends &amp; Revenue
+            </button>
+            <button class="dash-tab-btn ${dashActiveTab === 'table' ? 'active' : ''}" onclick="switchDashTab('table')">
+              ${ICONS.list} Detailed Stock Table
+            </button>
+          </div>
+        </div>
+
+        <div id="dash-content-container">
+          <p class="mu" style="padding:24px;text-align:center;">Loading graphical dashboard data...</p>
+        </div>`;
+
+      try {
+        let invData = null;
+        try {
+          invData = await apiCall('/api/pharmacy/inventory-dashboard');
+        } catch (e) {}
+
+        const stock = (invData && Array.isArray(invData.stock) && invData.stock.length) ? invData.stock : S.stock;
+        window._invStock = stock;
+        renderGraphicalDashboard(stock);
+      } catch (err) {
+        window._invStock = S.stock;
+        renderGraphicalDashboard(S.stock);
+      }
+    };
+
+    function switchDashTab(tabKey) {
+      dashActiveTab = tabKey;
+      V.inv_dash();
+    }
+
+    function renderGraphicalDashboard(stock) {
+      const now = Date.now();
+      const expiryWindowMs = (S.cfg.expiry || 90) * 864e5;
+      const lowStockThresh = S.cfg.low || 10;
+
+      // ── 1. Stock Metrics Computation ──
+      let totalUnits = 0;
+      let totalAssetVal = 0;
+      let healthyCount = 0;
+      let lowStockCount = 0;
+      let nearExpiryCount = 0;
+      let expiredCount = 0;
+      const unitGroups = {};
+
+      const stockWithVal = stock.map(s => {
+        const q = parseInt(s.quantity ?? s.q, 10) || 0;
+        const c = parseFloat(s.cost_price ?? s.cost) || 0;
+        const mrp = parseFloat(s.mrp) || 0;
+        const val = q * c;
+        const u = (s.unit || s.u || 'PCS').toUpperCase();
+        const x = s.expiry || s.x || '';
+        const expTime = x ? new Date(+x.slice(0, 4), +x.slice(5, 7), 0, 23, 59).getTime() : 0;
+        const isExp = expTime > 0 && expTime < now;
+        const isNex = expTime > 0 && (expTime - now < expiryWindowMs) && !isExp;
+
+        totalUnits += q;
+        totalAssetVal += val;
+        unitGroups[u] = (unitGroups[u] || 0) + q;
+
+        if (isExp) expiredCount++;
+        else if (isNex) nearExpiryCount++;
+        else if (q <= lowStockThresh) lowStockCount++;
+        else healthyCount++;
+
+        return {
+          id: s.id,
+          name: s.medicine_name || s.n || 'Unknown',
+          batch: s.batch || s.b || '-',
+          expiry: x,
+          q,
+          cost: c,
+          mrp,
+          val,
+          unit: u,
+          isExp,
+          isNex,
+          isLow: q <= lowStockThresh && !isExp
+        };
+      });
+
+      // ── 2. Sales Metrics Computation ──
+      const sales = Array.isArray(S.sales) ? S.sales : [];
+      let totalSalesRev = 0;
+      let cashRev = 0, creditRev = 0, otherRev = 0;
+      let cashCount = 0, creditCount = 0, otherCount = 0;
+      const topSellingMap = {};
+      const dailySalesMap = {};
+
+      sales.forEach(s => {
+        const tot = parseFloat(s.grand_total ?? s.tot) || 0;
+        totalSalesRev += tot;
+        const pm = (s.payment_mode || s.pm || 'Cash').toLowerCase();
+        if (pm.includes('cash')) { cashRev += tot; cashCount++; }
+        else if (pm.includes('credit')) { creditRev += tot; creditCount++; }
+        else { otherRev += tot; otherCount++; }
+
+        // Day bucket (YYYY-MM-DD)
+        const dateObj = new Date(s.transaction_time || s.t || s.created_at || now);
+        const dayKey = dateObj.toLocaleDateString('en-CA');
+        dailySalesMap[dayKey] = (dailySalesMap[dayKey] || 0) + tot;
+
+        // Top selling items
+        const items = s.items || s.L || [];
+        if (Array.isArray(items)) {
+          items.forEach(it => {
+            const medName = (it.medicine_name || it.n || 'Drug').toUpperCase();
+            const qty = parseInt(it.quantity ?? it.q, 10) || 0;
+            const price = parseFloat(it.mrp ?? it.r) || 0;
+            if (!topSellingMap[medName]) topSellingMap[medName] = { name: medName, qty: 0, rev: 0 };
+            topSellingMap[medName].qty += qty;
+            topSellingMap[medName].rev += qty * price;
+          });
+        }
+      });
+
+      // Stock health percentages
+      const totalStockRows = stockWithVal.length || 1;
+      const pHealthy = Math.round((healthyCount / totalStockRows) * 100);
+      const pLow = Math.round((lowStockCount / totalStockRows) * 100);
+      const pNear = Math.round((nearExpiryCount / totalStockRows) * 100);
+      const pExp = Math.round((expiredCount / totalStockRows) * 100);
+
+      // Top 7 Stock Valuation Items
+      const topStockVal = [...stockWithVal].sort((a, b) => b.val - a.val).slice(0, 7);
+      const maxStockVal = topStockVal.length ? Math.max(...topStockVal.map(x => x.val), 1) : 1;
+
+      // Top 6 Selling Medicines
+      const topSellingList = Object.values(topSellingMap).sort((a, b) => b.rev - a.rev).slice(0, 6);
+      const maxSellingRev = topSellingList.length ? Math.max(...topSellingList.map(x => x.rev), 1) : 1;
+
+      // Daily Sales for SVG Graph (last 7 to 10 recorded dates or defaults)
+      const dateKeys = Object.keys(dailySalesMap).sort().slice(-10);
+      const maxDailySale = dateKeys.length ? Math.max(...dateKeys.map(k => dailySalesMap[k]), 100) : 100;
+
+      // ── 3. Render Dashboard Sections ──
+      const showStock = dashActiveTab === 'all' || dashActiveTab === 'stock';
+      const showSales = dashActiveTab === 'all' || dashActiveTab === 'sales';
+      const showTable = dashActiveTab === 'all' || dashActiveTab === 'table';
+
+      $('#dash-content-container').innerHTML = `
+        <!-- Top Metric Summary Grid -->
+        <div class="metric-grid">
+          <div class="metric-card">
+            <span class="metric-label">${ICONS.dollar} Total Stock Asset Value</span>
+            <span class="metric-value">Rs. ${f(totalAssetVal)}</span>
+            <span class="metric-sub">Inventory Valuation (Units &times; Cost)</span>
+          </div>
+          <div class="metric-card success">
+            <span class="metric-label">${ICONS.layers} Physical Stock Volume</span>
+            <span class="metric-value">${totalUnits.toLocaleString()}</span>
+            <span class="metric-sub">Total Units Across All Batches</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">${ICONS.box} Drug Catalog Count</span>
+            <span class="metric-value">${stockWithVal.length}</span>
+            <span class="metric-sub">Active Formulations in Stock</span>
+          </div>
+          <div class="metric-card success">
+            <span class="metric-label">${ICONS.cart} Cumulative Sales Revenue</span>
+            <span class="metric-value">Rs. ${f(totalSalesRev)}</span>
+            <span class="metric-sub">${sales.length} Customer Invoices Recorded</span>
+          </div>
+          <div class="metric-card ${lowStockCount > 0 ? 'warn' : ''}">
+            <span class="metric-label">${ICONS.sliders} Low Stock Warnings</span>
+            <span class="metric-value" style="color:${lowStockCount > 0 ? 'var(--warn)' : 'var(--tx)'}">${lowStockCount}</span>
+            <span class="metric-sub">&le; ${lowStockThresh} Units Remaining</span>
+          </div>
+          <div class="metric-card ${expiredCount > 0 ? 'danger' : (nearExpiryCount > 0 ? 'warn' : '')}">
+            <span class="metric-label">${ICONS.calendar} Expiry Attention</span>
+            <span class="metric-value" style="color:${expiredCount > 0 ? 'var(--er)' : (nearExpiryCount > 0 ? 'var(--warn)' : 'var(--tx)')}">
+              ${nearExpiryCount + expiredCount}
+            </span>
+            <span class="metric-sub">${nearExpiryCount} Near Expiry &bull; ${expiredCount} Expired</span>
+          </div>
+        </div>
+
+        <!-- 4. Graphical Charts Grid: Stock & Inventory -->
+        ${showStock ? `
+          <div class="chart-grid">
+            <!-- Chart 1: Stock Health & Quality Distribution -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <div class="chart-title">${ICONS.layers} Stock Health &amp; Expiry Quality</div>
+                  <div class="chart-sub">Status breakdown of current pharmacy inventory</div>
+                </div>
+                <span class="stat-badge">${pHealthy}% Healthy</span>
+              </div>
+
+              <!-- Multi-Segment Visual Bar -->
+              <div class="stacked-bar-track" title="Healthy: ${healthyCount}, Low Stock: ${lowStockCount}, Near Expiry: ${nearExpiryCount}, Expired: ${expiredCount}">
+                <div class="stacked-seg" style="width:${pHealthy}%;background:var(--ok);" title="Healthy: ${pHealthy}%"></div>
+                <div class="stacked-seg" style="width:${pLow}%;background:var(--warn);" title="Low Stock: ${pLow}%"></div>
+                <div class="stacked-seg" style="width:${pNear}%;background:#ea580c;" title="Near Expiry: ${pNear}%"></div>
+                <div class="stacked-seg" style="width:${pExp}%;background:var(--er);" title="Expired: ${pExp}%"></div>
+              </div>
+
+              <!-- Visual Ring & Interactive Legend -->
+              <div class="donut-wrap">
+                <svg width="100" height="100" viewBox="0 0 100 100" style="transform:rotate(-90deg);">
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="var(--bg)" stroke-width="14"></circle>
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="var(--ok)" stroke-width="14"
+                          stroke-dasharray="${(pHealthy * 238.7) / 100} 238.7"></circle>
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="var(--warn)" stroke-width="14"
+                          stroke-dasharray="${(pLow * 238.7) / 100} 238.7" stroke-dashoffset="-${(pHealthy * 238.7) / 100}"></circle>
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="var(--er)" stroke-width="14"
+                          stroke-dasharray="${(pExp * 238.7) / 100} 238.7" stroke-dashoffset="-${((pHealthy + pLow) * 238.7) / 100}"></circle>
+                </svg>
+                <div class="donut-legend">
+                  <div class="legend-row" style="cursor:pointer;" onclick="filterStockByType('all')">
+                    <span class="legend-badge"><span class="legend-dot" style="background:var(--ok);"></span> Normal Stock (&gt; ${lowStockThresh})</span>
+                    <b>${healthyCount} items (${pHealthy}%)</b>
+                  </div>
+                  <div class="legend-row" style="cursor:pointer;" onclick="filterStockByType('low')">
+                    <span class="legend-badge"><span class="legend-dot" style="background:var(--warn);"></span> Low Stock (&le; ${lowStockThresh})</span>
+                    <b style="color:var(--warn);">${lowStockCount} items (${pLow}%)</b>
+                  </div>
+                  <div class="legend-row" style="cursor:pointer;" onclick="filterStockByType('nex')">
+                    <span class="legend-badge"><span class="legend-dot" style="background:#ea580c;"></span> Near Expiry (&lt; 90d)</span>
+                    <b style="color:#ea580c;">${nearExpiryCount} items (${pNear}%)</b>
+                  </div>
+                  <div class="legend-row" style="cursor:pointer;" onclick="filterStockByType('exp')">
+                    <span class="legend-badge"><span class="legend-dot" style="background:var(--er);"></span> Expired Stock</span>
+                    <b style="color:var(--er);">${expiredCount} items (${pExp}%)</b>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Chart 2: Top Stocked Medicines by Asset Value -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <div class="chart-title">${ICONS.dollar} Highest Value Stock Assets</div>
+                  <div class="chart-sub">Top medicines with highest capital tied up in inventory</div>
+                </div>
+                <span class="stat-badge">Top ${topStockVal.length}</span>
+              </div>
+              <div>
+                ${topStockVal.length === 0 ? `<p class="mu" style="font-size:12px;padding:24px 0;text-align:center;">No stock items recorded yet. Use 'Stock Entry' to add inventory.</p>` :
+                  topStockVal.map(item => {
+                    const pct = Math.min(100, Math.round((item.val / maxStockVal) * 100));
+                    return `
+                      <div class="hbar-item">
+                        <div class="hbar-label">
+                          <span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px;" title="${e(item.name)}">
+                            ${e(item.name)} <span class="mu" style="font-size:10px;">[${e(item.batch)}]</span>
+                          </span>
+                          <span class="mono" style="font-weight:700;">Rs. ${f(item.val)} <span class="mu" style="font-size:11px;">(${item.q} ${e(item.unit)})</span></span>
+                        </div>
+                        <div class="hbar-track">
+                          <div class="hbar-fill" style="width:${pct}%;background:linear-gradient(90deg, var(--ac), #14b8a6);"></div>
+                        </div>
+                      </div>`;
+                  }).join('')}
+              </div>
+            </div>
+          </div>` : ''}
+
+        <!-- 5. Graphical Charts Grid: Sales & Commercial Performance -->
+        ${showSales ? `
+          <div class="chart-grid">
+            <!-- Chart 3: Sales Revenue Trend Graph (SVG) -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <div class="chart-title">${ICONS.cart} Sales Revenue Trend Curve</div>
+                  <div class="chart-sub">Daily invoiced counter turnover in Rs.</div>
+                </div>
+                <span class="stat-badge">Total Rs. ${f(totalSalesRev)}</span>
+              </div>
+
+              ${dateKeys.length === 0 ? `
+                <div style="padding:36px 12px;text-align:center;">
+                  <p class="mu" style="font-size:12px;">No sales transactions logged yet.<br>Bills printed from the <b>Sales</b> counter will automatically plot graphical curves here.</p>
+                </div>` : `
+                <div class="sales-svg-container">
+                  <svg class="sales-svg-chart" viewBox="0 0 500 170" preserveAspectRatio="none">
+                    <line x1="30" y1="130" x2="490" y2="130" stroke="var(--bd)" stroke-width="1"></line>
+                    <line x1="30" y1="75" x2="490" y2="75" stroke="var(--bd)" stroke-dasharray="3,3" stroke-width="1"></line>
+                    <line x1="30" y1="20" x2="490" y2="20" stroke="var(--bd)" stroke-dasharray="3,3" stroke-width="1"></line>
+                    
+                    ${dateKeys.map((k, i) => {
+                      const count = dateKeys.length;
+                      const step = 440 / Math.max(1, count);
+                      const x = 40 + i * step;
+                      const val = dailySalesMap[k] || 0;
+                      const barH = Math.max(4, Math.round((val / maxDailySale) * 105));
+                      const y = 130 - barH;
+                      const label = k.slice(5); // MM-DD
+                      return `
+                        <rect x="${x - 12}" y="${y}" width="24" height="${barH}" rx="4" fill="var(--ac)" opacity="0.85">
+                          <title>${k}: Rs. ${f(val)}</title>
+                        </rect>
+                        <text x="${x}" y="${Math.max(16, y - 5)}" font-size="9" fill="var(--tx)" text-anchor="middle" font-weight="600" class="mono">
+                          ${val > 999 ? (val/1000).toFixed(1) + 'k' : Math.round(val)}
+                        </text>
+                        <text x="${x}" y="146" font-size="9" fill="var(--mu)" text-anchor="middle" class="mono">
+                          ${label}
+                        </text>`;
+                    }).join('')}
+                  </svg>
+                </div>`}
+            </div>
+
+            <!-- Chart 4: Payment Modes & Settlement Distribution -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <div class="chart-title">${ICONS.dollar} Payment Modes Breakdown</div>
+                  <div class="chart-sub">Cash counter collections vs credit receivables</div>
+                </div>
+                <span class="stat-badge">${sales.length} Invoices</span>
+              </div>
+
+              <!-- Segmented Payment Meter -->
+              <div class="stacked-bar-track">
+                <div class="stacked-seg" style="width:${totalSalesRev > 0 ? (cashRev / totalSalesRev) * 100 : 100}%;background:var(--ok);" title="Cash: Rs. ${f(cashRev)}"></div>
+                <div class="stacked-seg" style="width:${totalSalesRev > 0 ? (creditRev / totalSalesRev) * 100 : 0}%;background:var(--warn);" title="Credit: Rs. ${f(creditRev)}"></div>
+                <div class="stacked-seg" style="width:${totalSalesRev > 0 ? (otherRev / totalSalesRev) * 100 : 0}%;background:var(--ac);" title="Other/Digital: Rs. ${f(otherRev)}"></div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px;">
+                <div class="legend-row" style="background:var(--bg);padding:8px 12px;border-radius:6px;">
+                  <span class="legend-badge">
+                    <span class="legend-dot" style="background:var(--ok);width:12px;height:12px;"></span>
+                    <b>Cash Inflow (Counter)</b>
+                  </span>
+                  <div style="text-align:right;">
+                    <div class="mono" style="font-weight:700;color:var(--ok);">Rs. ${f(cashRev)}</div>
+                    <div class="mu" style="font-size:10px;">${cashCount} sales (${totalSalesRev > 0 ? Math.round((cashRev / totalSalesRev) * 100) : 0}%)</div>
+                  </div>
+                </div>
+
+                <div class="legend-row" style="background:var(--bg);padding:8px 12px;border-radius:6px;">
+                  <span class="legend-badge">
+                    <span class="legend-dot" style="background:var(--warn);width:12px;height:12px;"></span>
+                    <b>Credit Receivables</b>
+                  </span>
+                  <div style="text-align:right;">
+                    <div class="mono" style="font-weight:700;color:var(--warn);">Rs. ${f(creditRev)}</div>
+                    <div class="mu" style="font-size:10px;">${creditCount} sales (${totalSalesRev > 0 ? Math.round((creditRev / totalSalesRev) * 100) : 0}%)</div>
+                  </div>
+                </div>
+
+                <div class="legend-row" style="background:var(--bg);padding:8px 12px;border-radius:6px;">
+                  <span class="legend-badge">
+                    <span class="legend-dot" style="background:var(--ac);width:12px;height:12px;"></span>
+                    <b>Digital / QR / Other</b>
+                  </span>
+                  <div style="text-align:right;">
+                    <div class="mono" style="font-weight:700;color:var(--ac);">Rs. ${f(otherRev)}</div>
+                    <div class="mu" style="font-size:10px;">${otherCount} sales (${totalSalesRev > 0 ? Math.round((otherRev / totalSalesRev) * 100) : 0}%)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chart 5: Top Fast-Moving Medicines -->
+          <div class="chart-card" style="margin-bottom:16px;">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">${ICONS.box} Fastest-Moving Pharmaceuticals</div>
+                <div class="chart-sub">Medicines ranked by total counter revenue and billed volume</div>
+              </div>
+              <span class="stat-badge">Top Performers</span>
+            </div>
+            <div>
+              ${topSellingList.length === 0 ? `<p class="mu" style="font-size:12px;padding:16px;text-align:center;">No dispensed medicine history logged yet.</p>` : `
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;">
+                  ${topSellingList.map(item => {
+                    const pct = Math.min(100, Math.round((item.rev / maxSellingRev) * 100));
+                    return `
+                      <div class="hbar-item" style="background:var(--bg);padding:10px;border-radius:6px;">
+                        <div class="hbar-label">
+                          <span style="font-weight:600;" title="${e(item.name)}">${e(item.name)}</span>
+                          <span class="mono" style="font-weight:700;color:var(--ac);">Rs. ${f(item.rev)}</span>
+                        </div>
+                        <div class="hbar-track" style="margin-top:4px;">
+                          <div class="hbar-fill" style="width:${pct}%;background:var(--ac);"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:4px;" class="mu">
+                          <span>Volume Dispensed</span>
+                          <span class="mono" style="font-weight:600;">${item.qty} units</span>
+                        </div>
+                      </div>`;
+                  }).join('')}
+                </div>`}
+            </div>
+          </div>` : ''}
+
+        <!-- 6. Detailed Stock Audit Table -->
+        ${showTable ? `
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+              <div>
+                <h3 style="font-size:14px;font-weight:700;">${ICONS.list} Complete Pharmacy Stock Ledger</h3>
+                <p class="mu" style="font-size:11px;">Search, filter by expiration date, and audit unit cost vs MRP selling margins.</p>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button class="g" onclick="filterStockByType('all')">All</button>
+                <button class="g" onclick="filterStockByType('low')">Low Stock</button>
+                <button class="g" onclick="filterStockByType('nex')">Near Expiry</button>
+                <button class="g" onclick="filterStockByType('exp')">Expired</button>
+              </div>
+            </div>
+
+            <div class="row">
+              <input class="w" id="inv-sq" placeholder="Filter by medicine name, brand, or batch code..." value="${e(invFilterQuery)}" oninput="invFilterQuery=this.value;renderInvTable()">
+              <select id="inv-st" style="flex:1 1 180px;" onchange="invFilterType=this.value;renderInvTable()">
+                <option value="all" ${invFilterType == 'all' ? 'selected' : ''}>All Stock Items (${stockWithVal.length})</option>
+                <option value="low" ${invFilterType == 'low' ? 'selected' : ''}>Low Stock Only (&le; ${lowStockThresh} units)</option>
+                <option value="exp" ${invFilterType == 'exp' ? 'selected' : ''}>Expired Stock Only</option>
+                <option value="nex" ${invFilterType == 'nex' ? 'selected' : ''}>Near Expiry (&lt; 90 days)</option>
+              </select>
+            </div>
+            <div class="x" id="inv-table-container"></div>
+          </div>` : ''}
+      `;
+
+      if (showTable) renderInvTable();
+    }
+
+    function filterStockByType(type) {
+      invFilterType = type;
+      dashActiveTab = 'table';
+      V.inv_dash();
+    }
+
+    function renderInvTable() {
+      const stock = window._invStock || S.stock;
+      const q = invFilterQuery.toLowerCase();
+      const now = Date.now(), lim = (S.cfg.expiry || 90) * 864e5;
+
+      const filtered = stock.filter(s => {
+        const name = (s.medicine_name || s.n || '').toLowerCase();
+        const batch = (s.batch || s.b || '').toLowerCase();
+        const matchText = !q || name.includes(q) || batch.includes(q);
+        if (!matchText) return false;
+
+        const qty = parseInt(s.quantity ?? s.q, 10) || 0;
+        const x = s.expiry || s.x || '';
+        const t = x ? new Date(+x.slice(0, 4), +x.slice(5, 7), 0, 23, 59).getTime() : 0;
+        const isExp = t && t < now;
+        const isNex = t && t - now < lim && !isExp;
+
+        if (invFilterType == 'low') return qty <= (S.cfg.low || 10);
+        if (invFilterType == 'exp') return isExp;
+        if (invFilterType == 'nex') return isNex;
+        return true;
+      });
+
+      $('#inv-table-container').innerHTML = `
+        <table>
+          <tr>
+            <th>Medicine Name</th><th>Batch</th><th>Expiry</th><th class="n">Stock Qty</th><th class="n">Unit</th><th class="n">Cost Price</th><th class="n">MRP Selling</th><th class="n">Asset Valuation</th>
+          </tr>
+          ${filtered.map(s => {
+            const name = s.medicine_name || s.n;
+            const batch = s.batch || s.b || '-';
+            const unit = s.unit || s.u || 'PCS';
+            const x = s.expiry || s.x || '';
+            const qty = parseInt(s.quantity ?? s.q, 10) || 0;
+            const cost = parseFloat(s.cost_price ?? s.cost) || 0;
+            const mrp = parseFloat(s.mrp) || 0;
+            const totalVal = qty * cost;
+            const t = x ? new Date(+x.slice(0, 4), +x.slice(5, 7), 0, 23, 59).getTime() : 0;
+            const k = t && t < now ? 'exp' : t && t - now < lim ? 'nex' : (qty <= (S.cfg.low || 10) ? 'nex' : '');
+
+            return `
+              <tr class="${k}">
+                <td><b>${e(name)}</b></td>
+                <td class="mono">${e(batch)}</td>
+                <td>${ex(x) || '-'}</td>
+                <td class="n"><b>${qty}</b></td>
+                <td class="n">${e(unit)}</td>
+                <td class="n">Rs. ${f(cost)}</td>
+                <td class="n">Rs. ${f(mrp)}</td>
+                <td class="n"><b>Rs. ${f(totalVal)}</b></td>
+              </tr>`;
+          }).join('')}
+          ${filtered.length == 0 ? '<tr><td colspan="8" class="mu" style="text-align:center;padding:20px;">No matching stock records found.</td></tr>' : ''}
+        </table>`;
+    }
+
+    // ============================================================
+    //  NEW TAB: ADMIN FINANCIAL LEDGER (Server-Computed Dashboard)
+    // ============================================================
+    V.fin_dash = async () => {
+      if (S.users[U]?.role !== 'admin') {
+        $('#pg').innerHTML = `<div class="card"><p class="err">Access Denied: Admin role required for financial ledger access.</p></div>`;
+        return;
+      }
+
+      $('#pg').innerHTML = `
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h3>${ICONS.ledger} Hospital Admin Financial Ledger & Trading Accounts</h3>
+            <button class="g" onclick="V.fin_dash()">${ICONS.search} Refresh</button>
+          </div>
+          <p class="mu" style="margin-bottom:14px;">Real-time trading performance computed securely on the backend server.</p>
+          <div id="fin-metrics-container"><p class="mu">Computing ledger balances...</p></div>
+        </div>`;
+
+      try {
+        const d = await apiCall('/api/pharmacy/accounts-dashboard');
+        const isProfit = d.netProfit >= 0;
+
+        $('#fin-metrics-container').innerHTML = `
+          <div class="metric-grid">
+            <div class="metric-card success">
+              <span class="metric-label">${ICONS.dollar} Gross Sales Revenue</span>
+              <span class="metric-value">Rs. ${f(d.totalRevenue)}</span>
+              <span class="metric-sub">Cumulative customer bill totals</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">${ICONS.list} Total Invoices</span>
+              <span class="metric-value">${d.totalInvoices}</span>
+              <span class="metric-sub">Customer transactions recorded</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">${ICONS.cart} Cash Revenue Inflow</span>
+              <span class="metric-value">Rs. ${f(d.cashRevenue)}</span>
+              <span class="metric-sub">Direct cash collected at counter</span>
+            </div>
+            <div class="metric-card warn">
+              <span class="metric-label">${ICONS.sliders} Credit Outstandings</span>
+              <span class="metric-value">Rs. ${f(d.creditRevenue)}</span>
+              <span class="metric-sub">Outstanding credit receivables due</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">${ICONS.box} Capital Stock Spending</span>
+              <span class="metric-value">Rs. ${f(d.totalPurchaseExp)}</span>
+              <span class="metric-sub">Procurement expenses (Qty &times; Cost)</span>
+            </div>
+            <div class="metric-card ${isProfit ? 'success' : 'danger'}">
+              <span class="metric-label">${ICONS.ledger} Net Trading ${isProfit ? 'Profit' : 'Loss'}</span>
+              <span class="metric-value" style="color:${isProfit ? 'var(--ok)' : 'var(--er)'}">
+                Rs. ${f(d.netProfit)}
+              </span>
+              <span class="metric-sub">Gross Sales &minus; Stock Procurement Expenses</span>
+            </div>
+          </div>
+          <div class="card" style="background:var(--bg);margin-top:16px;">
+            <h3 style="font-size:14px;">Financial Health Summary</h3>
+            <table style="max-width:500px;">
+              <tr><td>Gross Sales Invoiced</td><td class="n">Rs. ${f(d.totalRevenue)}</td></tr>
+              <tr><td>Less: Capital Purchases Spent</td><td class="n">&minus; Rs. ${f(d.totalPurchaseExp)}</td></tr>
+              <tr style="border-top:2px solid var(--bd);">
+                <td><b>Net Operating Balance</b></td>
+                <td class="n"><b>Rs. ${f(d.netProfit)}</b></td>
+              </tr>
+              <tr><td>Liquid Cash in Hand</td><td class="n">Rs. ${f(d.cashRevenue)}</td></tr>
+              <tr><td>Pending Credit Receivables</td><td class="n">Rs. ${f(d.creditRevenue)}</td></tr>
+            </table>
+          </div>`;
+      } catch (err) {
+        $('#fin-metrics-container').innerHTML = `<p class="err">Could not retrieve accounts dashboard: ${e(err.message)}</p>`;
+      }
+    };
+
+    // ============================================================
+    //  TAB: SALES RETURN
+    // ============================================================
+    let RR = [{}], RF = { pm: 'Cash' }, RD1 = td(), RD2 = td();
+    const sum2 = (A, sid) => A.reduce((a, b) => a + (b.L || []).filter(l => l.sid == sid).reduce((x, l) => x + l.q, 0), 0);
+    const sold = sid => sum2(S.sales, sid) - sum2(S.rets, sid);
+    const lastRate = sid => {
+      for (let i = S.sales.length - 1; i >= 0; i--) {
+        const l = (S.sales[i].L || []).find(l => l.sid == sid);
+        if (l) return l.r;
+      }
+      return 0;
+    };
+    const rlbl = s => `${s.n} | ${s.b} | ${ex(s.x)} | returnable ${sold(s.id)} | ${f(lastRate(s.id))}`;
+
+    function rpick(i, v) {
+      RR[i].t = v;
+      const s = S.stock.find(x => rlbl(x) == v);
+      RR[i].sid = s ? s.id : '';
+      if (s) {
+        RR[i].r = lastRate(s.id);
+        const el = document.getElementById('rr' + i);
+        if (el) el.value = RR[i].r;
+      }
+      rtot();
+    }
+
+    const RL = () => RR.filter(r => r.sid && +r.q > 0).map(r => {
+      const s = S.stock.find(x => x.id == r.sid);
+      return { sid: s.id, n: s.n, hs: s.hs, u: s.u, b: s.b, x: s.x, q: +r.q, r: +r.r || lastRate(s.id), v: s.vat, c: s.cost };
+    });
+
+    function rtot() {
+      const el = $('#rt');
+      if (el) el.innerHTML = 'Refund Amount: <b class="mono">Rs. ' + f(calc(RL()).tot) + '</b>';
+    }
+
+    V.ret = async () => {
+      const op = S.stock.filter(s => sold(s.id) > 0).map(s => `<option value="${e(rlbl(s))}">`).join('');
+      const a = new Date(RD1 + 'T00:00:00').getTime(), z = new Date(RD2 + 'T23:59:59').getTime();
+      const L = S.rets.map((b, i) => ({ b, i })).filter(({ b }) => b.t >= a && b.t <= z).reverse();
+
+      $('#pg').innerHTML = `
+        <div class="card">
+          <h3>${ICONS.undo} Customer Sales Return</h3>
+          <datalist id="rl">${op}</datalist>
+          <div class="row">
+            ${lab('Customer Name', `<input value="${e(RF.cu || '')}" oninput="RF.cu=this.value">`, 'w')}
+            ${lab('Refund Payment Mode', `
+              <select onchange="RF.pm=this.value">
+                ${['Cash', 'Card', 'Online', 'Credit'].map(o => `<option ${RF.pm == o ? 'selected' : ''}>${o}</option>`).join('')}
+              </select>`)}
+          </div>
+          ${RR.map((r, i) => `
+            <div class="row" style="background:var(--bg);padding:8px;border-radius:6px;margin:4px 0;">
+              ${lab('Medicine (Search Sold Batches)', `<input list="rl" placeholder="Search sold medicine..." value="${e(r.t || '')}" oninput="rpick(${i},this.value)">`, 'w')}
+              ${lab('Return Quantity', `<input type="number" min="1" value="${e(r.q || '')}" oninput="RR[${i}].q=this.value;rtot()">`)}
+              ${lab('Refund Rate (Rs.)', `<input id="rr${i}" type="number" step="any" min="0" value="${e(r.r || '')}" oninput="RR[${i}].r=this.value;rtot()">`)}
+              <button class="g danger" onclick="RR.splice(${i},1);if(!RR.length)RR=[{}];V.ret()">${ICONS.cross}</button>
+            </div>`).join('')}
+          <div style="margin:8px 0;">
+            <button class="g" onclick="RR.push({});V.ret()">${ICONS.plus} Add Medicine</button>
+          </div>
+          <div class="row">
+            ${lab('Return Reason', `<input placeholder="Reason for medicine return..." value="${e(RF.note || '')}" oninput="RF.note=this.value">`, 'w')}
+          </div>
+          <p id="rt" style="font-size:15px;margin:12px 0;"></p>
+          <button onclick="doRet()">${ICONS.save} Process Return & Print Credit Note</button>
+          <p class="err" id="re"></p>
+        </div>
+
+        <div class="card x">
+          <h3>Returns Record (Date-Filtered)</h3>
+          <div class="row">
+            ${lab('From Date', `<input type="date" value="${RD1}" onchange="RD1=this.value;V.ret()">`)}
+            ${lab('To Date', `<input type="date" value="${RD2}" onchange="RD2=this.value;V.ret()">`)}
+          </div>
+          <table>
+            <tr>
+              <th>Date (BS / AD)</th><th>Time</th><th>Return No</th><th>Customer</th><th>Items</th><th class="n">Refund Total</th><th>User</th><th></th>
+            </tr>
+            ${L.map(({ b, i }) => `
+              <tr>
+                <td>${bs(b.t) || '-'} / ${new Date(b.t).toLocaleDateString('en-CA')}</td>
+                <td>${new Date(b.t).toLocaleTimeString()}</td>
+                <td class="mono"><b>${b.no}</b></td>
+                <td>${e(b.cu)}</td>
+                <td>${e(b.L.map(l => l.n + ' x' + l.q).join(', '))}</td>
+                <td class="n">Rs. ${f(b.tot)}</td>
+                <td>${e(S.users[b.u]?.n || b.u)}</td>
+                <td><button class="g" onclick="printBill(S.rets[${i}],'SALES RETURN')">${ICONS.print} Print</button></td>
+              </tr>`).join('')}
+            <tr>
+              <td colspan="5"><b>Total Refunded:</b></td>
+              <td class="n"><b>Rs. ${f(L.reduce((a, { b }) => a + b.tot, 0))}</b></td>
+              <td></td><td></td>
+            </tr>
+          </table>
+        </div>`;
+      rtot();
+    };
+
+    async function doRet() {
+      const err = [], L = [], need = {};
+      RR.forEach((r, i) => {
+        if (!(r.t || r.q)) return;
+        const n = 'Line ' + (i + 1) + ': ', s = S.stock.find(x => x.id == r.sid);
+        if (!s) return err.push(n + 'pick the medicine from the sold search list');
+        if (!(+r.q > 0)) return err.push(n + 'enter quantity');
+        need[s.id] = (need[s.id] || 0) + (+r.q);
+        if (need[s.id] > sold(s.id)) return err.push(n + 'only ' + sold(s.id) + ' can be returned for ' + s.n + ' ' + s.b);
+        L.push({ sid: s.id, n: s.n, hs: s.hs, u: s.u, b: s.b, x: s.x, q: +r.q, r: +r.r || lastRate(s.id), v: s.vat, c: s.cost });
+      });
+
+      if (err.length || !L.length) {
+        const t = err.length ? err.join(' | ') : 'Add at least one medicine';
+        $('#re').textContent = t;
+        return toast(t);
+      }
+
+      const retNo = 'RET' + String(S.rs).padStart(7, '0');
+      const calcRes = calc(L, 0);
+
+      try {
+        await apiCall('/api/returns', {
+          method: 'POST',
+          body: JSON.stringify({
+            return_no: retNo,
+            customer_name: RF.cu || '',
+            payment_mode: RF.pm || 'Cash',
+            items: L,
+            grand_total: calcRes.tot,
+            note: RF.note || 'Sales return',
+            timestamp: Date.now()
+          })
+        });
+        L.forEach(l => {
+          const s = S.stock.find(x => x.id == l.sid);
+          if (s) s.q += l.q;
+        });
+        S.rs++;
+      } catch (e) {
+        L.forEach(l => {
+          const s = S.stock.find(x => x.id == l.sid);
+          if (s) s.q += l.q;
+        });
+        S.rs++;
+      }
+
+      const b = { no: retNo, sale: '', t: Date.now(), u: U, cu: RF.cu || '', pb: '', pan: '', add: '', bm: 'General', pm: RF.pm, note: RF.note || 'Sales return', L, ...calcRes };
+      S.rets.push(b);
+      saveLocalCache();
+      RR = [{}];
+      RF = { pm: 'Cash' };
+      printBill(b, 'SALES RETURN');
+      V.ret();
+    }
+
+    // ============================================================
+    //  TAB: ADJUSTMENT (Stock Damage / Loss Audit)
+    // ============================================================
+    V.adj = () => {
+      $('#pg').innerHTML = `
+        <div class="card">
+          <h3>${ICONS.sliders} Stock Adjustment & Damage Audit</h3>
+          <input id="as" list="al" placeholder="Search batch to adjust...">
+          <datalist id="al">${S.stock.map(s => `<option value="${e(lbl(s))}">`).join('')}</datalist>
+          <div class="row">
+            ${lab('Action Type', `
+              <select id="at">
+                <option value="1">Increase Stock</option>
+                <option value="-1">Decrease (Damage, Expiry, Breakage)</option>
+                <option value="0">Set Exact Physical Count</option>
+              </select>`)}
+            ${lab('Quantity', `<input id="aq" type="number" min="0" placeholder="Qty">`)}
+            ${lab('Audit Reason (Required)', `<input id="aw" placeholder="Reason note...">`, 'w')}
+          </div>
+          <div class="row">
+            ${lab('New MRP (Optional)', `<input id="am" type="number" min="0" step="any" placeholder="Keep current">`)}
+            ${lab('New Cost Rate (Optional)', `<input id="ac" type="number" min="0" step="any" placeholder="Keep current">`)}
+          </div>
+          <button onclick="doAdj()">${ICONS.save} Save Adjustment</button>
+        </div>
+
+        <div class="card x">
+          <h3>Recent Adjustments Audit Trail</h3>
+          <table>
+            <tr><th>Time</th><th>Medicine</th><th class="n">Quantity Change</th><th>Reason Note</th><th>Audited By</th></tr>
+            ${S.adj.slice(-8).reverse().map(a => `
+              <tr>
+                <td>${new Date(a.t).toLocaleString()}</td>
+                <td><b>${e(a.n)}</b> <span class="mono">${e(a.b)}</span></td>
+                <td class="n" style="color:${a.d >= 0 ? 'var(--ok)' : 'var(--er)'}">${a.d > 0 ? '+' : ''}${a.d}</td>
+                <td>${e(a.why)}</td>
+                <td>${e(S.users[a.u]?.n || a.u)}</td>
+              </tr>`).join('')}
+          </table>
+        </div>`;
+    };
+
+    async function doAdj() {
+      const s = S.stock.find(x => lbl(x) == $('#as').value);
+      const ty = +$('#at').value, q = +$('#aq').value, m = +$('#am').value, c = +$('#ac').value;
+      if (!s) return toast('Pick the medicine batch from search list');
+      if (ty == 0 && $('#aq').value === '') return toast('Enter the exact quantity');
+      const d = ty ? ty * q : q - s.q;
+      if (!d && !m && !c) return toast('No quantity or price change entered');
+      if (s.q + d < 0) return toast('Cannot reduce stock below zero');
+      if (!$('#aw').value.trim()) return toast('Please provide a reason for the adjustment');
+
+      try {
+        await apiCall('/api/adjustments', {
+          method: 'POST',
+          body: JSON.stringify({
+            stock_id: s.id,
+            quantity_change: d,
+            reason: $('#aw').value.trim() + (m || c ? ' (price modified)' : ''),
+            new_mrp: m || null,
+            new_cost: c || null
+          })
+        });
+      } catch (e) {
+        console.warn('Backend adjustment failed, modifying locally:', e);
+      }
+
+      const oc = s.cost;
+      s.q += d;
+      if (m) s.mrp = m;
+      if (c) s.cost = c;
+      S.adj.push({ t: Date.now(), u: U, sid: s.id, n: s.n, b: s.b, d, c: oc, why: $('#aw').value.trim() + (m || c ? ' (price modified)' : '') });
+      saveLocalCache();
+      toast('Adjustment committed successfully.');
+      V.adj();
+    }
+
+    // ============================================================
+    //  TAB: INCOME STATEMENT
+    // ============================================================
+    V.inc = () => {
+      const adm = S.users[U]?.role == 'admin';
+      const a = new Date(D1 + 'T00:00:00').getTime(), z = new Date(D2 + 'T23:59:59').getTime();
+      const ev = [];
+      S.sales.forEach(b => ev.push({ u: b.u, t: b.t, n: b.n ?? b.sub, v: b.vat, c: b.cost, k: 1 }));
+      S.rets.forEach(b => ev.push({ u: b.u, t: b.t, n: -(b.n ?? b.sub), v: -b.vat, c: -b.cost, k: -1 }));
+
+      const mine = x => adm ? (IU == 'all' || x.u == IU) : x.u == U;
+      const E = ev.filter(x => x.t >= a && x.t <= z && mine(x));
+      const sum = (l, k) => l.reduce((s, x) => s + (x[k] || 0), 0);
+      const adj = S.adj.filter(x => x.t >= a && x.t <= z && mine(x)).reduce((s, x) => s + x.d * x.c, 0);
+
+      const grp = (kf, lf) => {
+        const m = {};
+        E.forEach(x => { const k = kf(x); (m[k] = m[k] || []).push(x); });
+        return Object.keys(m).sort().map(k => {
+          const l = m[k];
+          return `<tr><td>${lf ? lf(k, l) : k}</td><td class="n">${sum(l, 'k')}</td><td class="n">Rs. ${f(sum(l, 'n'))}</td><td class="n">Rs. ${f(sum(l, 'v'))}</td><td class="n">Rs. ${f(sum(l, 'n') - sum(l, 'c'))}</td></tr>`;
+        }).join('');
+      };
+
+      const tb = (h, c, r) => `
+        <div class="card x">
+          <h3>${h}</h3>
+          <table>
+            <tr><th>${c}</th><th class="n">Invoices</th><th class="n">Net Sales</th><th class="n">VAT Incl.</th><th class="n">Profit</th></tr>
+            ${r}
+          </table>
+        </div>`;
+
+      const gs = E.filter(x => x.k > 0), rt = E.filter(x => x.k < 0), net = sum(E, 'n'), gp = net - sum(E, 'c');
+      const hh = x => String(new Date(x.t).getHours()).padStart(2, '0');
+
+      $('#pg').innerHTML = `
+        <div class="card">
+          <h3>${ICONS.dollar} Trading Income Statement ${adm ? '' : '(Your Invoices Only)'}</h3>
+          <div class="row">
+            ${lab('From Date', `<input type="date" value="${D1}" onchange="D1=this.value;V.inc()">`)}
+            ${lab('To Date', `<input type="date" value="${D2}" onchange="D2=this.value;V.inc()">`)}
+            ${adm ? lab('Staff Filter', `
+              <select onchange="IU=this.value;V.inc()">
+                <option value="all">All Staff Members</option>
+                ${Object.entries(S.users).map(([k, u]) => `<option value="${k}" ${IU == k ? 'selected' : ''}>${e(u.n)}</option>`).join('')}
+              </select>`) : ''}
+          </div>
+          <table style="max-width:550px;margin-top:10px;">
+            <tr><td>Sales (before VAT)</td><td class="n">Rs. ${f(sum(gs, 'n'))}</td></tr>
+            <tr><td>Less: Sales Returns</td><td class="n">&minus; Rs. ${f(-sum(rt, 'n'))}</td></tr>
+            <tr style="border-top:1px solid var(--bd);"><td><b>Net Sales Revenue</b></td><td class="n"><b>Rs. ${f(net)}</b></td></tr>
+            <tr><td>Cost of Goods Sold (COGS)</td><td class="n">&minus; Rs. ${f(sum(E, 'c'))}</td></tr>
+            <tr style="border-top:1px solid var(--bd);"><td><b>Gross Operating Profit</b></td><td class="n"><b>Rs. ${f(gp)}</b></td></tr>
+            <tr><td>Stock Adjustments Value</td><td class="n">Rs. ${f(adj)}</td></tr>
+            <tr style="border-top:2px solid var(--tx);"><td><b>Net Operating Profit</b></td><td class="n"><b>Rs. ${f(gp + adj)}</b></td></tr>
+          </table>
+        </div>
+        ${tb('Staff Performance Breakdown', 'Staff User', grp(x => x.u, k => e(S.users[k]?.n || k)))}
+        ${tb('Daily Sales Distribution', 'Date (AD / BS)', grp(x => new Date(x.t).toLocaleDateString('en-CA'), (k, l) => k + ' / ' + (bs(l[0].t) || '-')))}
+        ${tb('Hourly Traffic Analysis', 'Hour of Day', grp(hh, k => k + ':00 – ' + k + ':59'))}`;
+    };
+
+    // ============================================================
+    //  TAB: TRANSACTIONS (Admin Audit & Deletions)
+    // ============================================================
+    let TT = 'sales', TQ = '';
+    const stk = (sid, d) => { const s = S.stock.find(x => x.id == sid); if (s) s.q = Math.max(0, s.q + d); };
+
+    V.txn = () => {
+      $('#pg').innerHTML = `
+        <div class="card">
+          <h3>${ICONS.list} Master Transaction Ledger (Admin Audit)</h3>
+          <div class="row">
+            ${lab('Ledger Type', `
+              <select onchange="TT=this.value;V.txn()">
+                ${[['sales', 'Customer Sales'], ['rets', 'Sales Returns'], ['purch', 'Stock Entries'], ['adj', 'Adjustments']].map(([k, n]) => `<option value="${k}" ${TT == k ? 'selected' : ''}>${n}</option>`).join('')}
+              </select>`)}
+            ${lab('Search Transactions', `<input class="w" placeholder="Filter by invoice no, customer, or medicine..." value="${e(TQ)}" oninput="TQ=this.value;tlist()">`, 'w')}
+          </div>
+          <p class="mu" style="margin-top:4px;">
+            ⚠️ Deleting any transaction will automatically reverse its stock adjustments and income entries.
+          </p>
+          <div class="x" id="tl" style="margin-top:12px;"></div>
+        </div>`;
+      tlist();
+    };
+
+    function tlist() {
+      const q = TQ.toLowerCase();
+      const rows = (S[TT] || []).map((b, i) => ({ b, i })).filter(({ b }) => !q || JSON.stringify([b.no, b.cu, b.sup, b.n, (b.L || []).map(l => l.n)]).toLowerCase().includes(q)).slice(-40).reverse();
+
+      $('#tl').innerHTML = `
+        <table>
+          <tr>
+            <th>Reference No</th><th>Timestamp</th><th>Staff</th><th>Particulars</th><th class="n">Amount</th><th>Actions</th>
+          </tr>
+          ${rows.map(({ b, i }) => `
+            <tr>
+              <td class="mono"><b>${e(b.no || '-')}</b></td>
+              <td>${new Date(b.t).toLocaleString()}</td>
+              <td>${e(S.users[b.u]?.n || b.u)}</td>
+              <td>${e(TT == 'adj' ? b.n + ' ' + b.b + ' (' + (b.d > 0 ? '+' : '') + b.d + ') ' + b.why : (b.cu ? b.cu + ': ' : b.sup ? b.sup + ': ' : '') + (b.L || []).map(l => l.n + ' x' + l.q).join(', '))}</td>
+              <td class="n">${TT == 'adj' ? '-' : 'Rs. ' + f(b.tot ?? (b.L || []).reduce((a, l) => a + l.q * l.c, 0))}</td>
+              <td><button class="g danger" onclick="del('${TT}',${i})">${ICONS.trash} Reverse</button></td>
+            </tr>`).join('')}
+          ${rows.length == 0 ? '<tr><td colspan="6" class="mu" style="text-align:center;padding:16px;">No records found.</td></tr>' : ''}
+        </table>`;
+    }
+
+    async function del(k, i) {
+      if (!await ask()) return;
+      const b = S[k][i];
+      if (!b) return;
+
+      try {
+        if (b.id) await apiCall(`/api/transactions/${k}/${b.id}`, { method: 'DELETE' });
+      } catch (e) {
+        console.warn('Backend delete failed, performing local reversal:', e);
+      }
+
+      if (k == 'sales') {
+        (b.L || []).forEach(l => stk(l.sid, l.q));
+        S.rets.filter(r => r.sale == b.no).forEach(r => (r.L || []).forEach(l => stk(l.sid, -l.q)));
+        S.rets = S.rets.filter(r => r.sale != b.no);
+      } else if (k == 'rets' || k == 'purch') {
+        (b.L || []).forEach(l => stk(l.sid, -l.q));
+      } else {
+        stk(b.sid, -b.d);
+      }
+
+      S[k] = S[k].filter(x => x !== b);
+      S.log.push({ t: Date.now(), c: `Reversed ${k} transaction ${b.no || b.n || ''} by ${S.users[U]?.n}` });
+      saveLocalCache();
+      toast('Transaction reversed. Stock restored.');
+      V.txn();
+    }
+
+    // ============================================================
+    //  TAB: CUSTOMIZE (Admin System Configuration)
+    // ============================================================
+    const HELP = [
+      'set name &lt;text&gt;',
+      'set address &lt;text&gt;',
+      'set pan &lt;number&gt;',
+      'set prefix &lt;text&gt; (e.g. BASR)',
+      'set invoice number &lt;n&gt;',
+      'set footer1 &lt;text&gt; / set footer2 &lt;text&gt;',
+      'set vat &lt;percent&gt;',
+      'set expiry &lt;days&gt;',
+      'set low &lt;number&gt;',
+      'set color #0f766e',
+      'enable autoprint / disable autoprint',
+      'enable returns / disable returns',
+      'enable discount / disable discount',
+      'adjustment password on / off',
+      'reset password &lt;username&gt;'
+    ];
+
+    async function run(c) {
+      let o; const g = S.cfg; c = c.trim();
+      const updates = {};
+
+      if (o = c.match(/^set name (.+)$/i)) { updates.name = o[1]; }
+      else if (o = c.match(/^set address (.+)$/i)) { updates.addr = o[1]; }
+      else if (o = c.match(/^set pan (\d+)$/i)) { updates.pan = o[1]; }
+      else if (o = c.match(/^set prefix (\w{1,8})$/i)) { updates.prefix = o[1].toUpperCase(); }
+      else if (o = c.match(/^set invoice number (\d+)$/i)) { updates.seq = +o[1]; }
+      else if (o = c.match(/^set footer([12]) (.+)$/i)) { updates['footer' + o[1]] = o[2]; }
+      else if ((o = c.match(/^set vat (\d+(\.\d+)?)$/i)) && +o[1] <= 100) { updates.vat = +o[1]; }
+      else if (o = c.match(/^set low (\d{1,5})$/i)) { updates.low_stock_level = +o[1]; }
+      else if (o = c.match(/^set color (#[0-9a-f]{6})$/i)) { updates.accent = o[1]; }
+      else if (o = c.match(/^(enable|disable) autoprint$/i)) { updates.auto_print = o[1].toLowerCase() == 'enable'; }
+      else if (o = c.match(/^set expiry (\d{1,4})$/i)) { updates.expiry_days = +o[1]; }
+      else if (o = c.match(/^(enable|disable) (returns|discount)$/i)) {
+        const key = o[2].toLowerCase() == 'returns' ? 'returns_enabled' : 'discount_enabled';
+        updates[key] = o[1].toLowerCase() == 'enable';
+      }
+      else if (o = c.match(/^adjustment password (on|off)$/i)) { updates.adj_password = o[1].toLowerCase() == 'on'; }
+      else if (o = c.match(/^reset password (\S+)$/i)) {
+        const u = o[1].toLowerCase();
+        await apiCall('/api/users/reset-password', { method: 'POST', body: JSON.stringify({ username: u }) });
+        if (S.users[u]) S.users[u].has_password = false;
+        return `Password cleared for user: ${u}. User will set new password upon next login.`;
+      } else {
+        return null;
+      }
+
+      try {
+        await apiCall('/api/config', { method: 'PUT', body: JSON.stringify(updates) });
+        await initialLoad();
+      } catch (e) {
+        Object.assign(g, updates);
+        saveLocalCache();
+      }
+      return 'Configuration updated successfully.';
+    }
+
+    V.cust = () => {
+      const g = S.cfg;
+      $('#pg').innerHTML = `
+        <div class="card">
+          <h3>${ICONS.settings} System Administration & Customization</h3>
+          <div class="row">
+            <input id="cm" class="w" placeholder="Type setting command (e.g. set name HARION NAGAR HOSPITAL & PHARMACY or help)..." onkeydown="if(event.key=='Enter')cmd()">
+            <button onclick="cmd()">${ICONS.save} Apply Setting</button>
+          </div>
+          <p id="cr" class="mu" style="margin-top:6px;">Type 'help' to view the full command parameter manual.</p>
+          <div style="background:var(--bg);padding:12px;border-radius:6px;margin-top:12px;font-size:12px;" class="mono">
+            <b>Current Configuration Map:</b><br>
+            Name: ${e(g.name)} | Address: ${e(g.addr)} | PAN: ${e(g.pan)} | Prefix: ${e(g.prefix)} | Next Bill: ${S.seq} | VAT: ${g.vat}% | Low Stock: ${g.low} | Expiry Warn: ${g.expiry} days
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>${ICONS.plus} User Management (Add Staff / Admin Accounts)</h3>
+          <p class="mu" style="margin-bottom:12px;">Create and register new staff members or administrators with granular permissions.</p>
+          <div class="row">
+            ${lab('Username (ID)', `<input id="nu_u" placeholder="e.g. rahul">`)}
+            ${lab('Full Name', `<input id="nu_n" placeholder="e.g. Rahul Sharma">`, 'w')}
+            ${lab('Role Tier', `
+              <select id="nu_r">
+                <option value="staff">Staff (Billing & Inventory)</option>
+                <option value="admin">Admin (Full System Access)</option>
+              </select>`)}
+            ${lab('Initial Password (Optional)', `<input id="nu_p" type="password" placeholder="Leave empty for 1st login prompt">`)}
+            <button onclick="addNewUser()">${ICONS.plus} Create User</button>
+          </div>
+          <p class="err" id="nu_err"></p>
+          <div style="margin-top:16px;">
+            <h4 style="font-size:13px;margin-bottom:8px;">Registered System Accounts:</h4>
+            <table>
+              <tr><th>Username</th><th>Full Name</th><th>Role</th><th>Password Status</th><th>Action</th></tr>
+              ${Object.entries(S.users).map(([u, d]) => `
+                <tr>
+                  <td class="mono"><b>${e(u)}</b></td>
+                  <td>${e(d.n)}</td>
+                  <td><span class="user-badge" style="background:${d.role === 'admin' ? 'var(--ac)' : 'var(--mu)'};color:#fff;">${e(d.role)}</span></td>
+                  <td>${d.has_password ? '✓ Protected' : '<span class="warn">Pending Setup</span>'}</td>
+                  <td>
+                    <button class="g" style="padding:2px 8px;font-size:11px;" onclick="resetUserPw('${u}')">Clear Password</button>
+                  </td>
+                </tr>`).join('')}
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>${ICONS.box} Database State Snapshot</h3>
+          <p class="mu" style="margin-bottom:8px;">All pharmacy states are stored securely in Supabase. You can also view raw JSON snapshot below.</p>
+          <button class="g" onclick="$('#bk').value=JSON.stringify(S,null,2)">View Full State JSON</button>
+          <textarea id="bk" rows="6" style="margin-top:8px;font-family:var(--mono);font-size:11px;"></textarea>
+        </div>`;
+    };
+
+    async function addNewUser() {
+      const u = ($('#nu_u')?.value || '').toLowerCase().trim();
+      const n = ($('#nu_n')?.value || '').trim();
+      const r = $('#nu_r')?.value || 'staff';
+      const p = $('#nu_p')?.value || '';
+      const errEl = $('#nu_err');
+
+      if (!u || u.length < 2) {
+        if (errEl) errEl.textContent = 'Username must be at least 2 characters.';
+        return;
+      }
+      if (!n) {
+        if (errEl) errEl.textContent = 'Please enter the user\'s full name.';
+        return;
+      }
+
+      try {
+        const created = await apiCall('/api/users', {
+          method: 'POST',
+          body: JSON.stringify({ username: u, full_name: n, role: r, password: p || undefined })
+        });
+
+        S.users[created.username] = {
+          n: created.full_name,
+          role: created.role,
+          has_password: created.has_password
+        };
+        saveLocalCache();
+        toast(`User ${created.full_name} (${created.username}) created successfully!`);
+        V.cust();
+      } catch (err) {
+        if (errEl) errEl.textContent = err.message;
+        toast(err.message);
+      }
+    }
+
+    async function resetUserPw(u) {
+      if (!await ask()) return;
+      try {
+        await apiCall('/api/users/reset-password', {
+          method: 'POST',
+          body: JSON.stringify({ username: u })
+        });
+        if (S.users[u]) S.users[u].has_password = false;
+        saveLocalCache();
+        toast(`Password cleared for ${u}. They will set a new one upon next login.`);
+        V.cust();
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    async function cmd() {
+      const c = $('#cm').value.trim();
+      if (!c) return;
+      if (/^help$/i.test(c)) {
+        $('#cr').innerHTML = HELP.join('<br>');
+        return;
+      }
+      const res = await run(c);
+      if (res) {
+        toast(res);
+        $('#cr').textContent = res;
+        V.cust();
+      } else {
+        $('#cr').textContent = 'Command not recognized. Type help for list of commands.';
+      }
+    }
+
+    // Start App
+    initialLoad();
+  </script>
+</body>
+</html>
