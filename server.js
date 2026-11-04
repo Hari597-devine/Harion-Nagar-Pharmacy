@@ -306,7 +306,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     const token = jwt.sign(
       { username: cleanUsername, fullName, role },
-      JWT_SECRET,
+      JWT_SECRET || 'harion_fallback_secret_key_8829103948572019',
       { expiresIn: JWT_EXPIRES }
     );
 
@@ -316,7 +316,7 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Server error during login.' });
+    res.status(500).json({ error: 'Server error during login: ' + err.message });
   }
 });
 
@@ -360,7 +360,7 @@ app.post('/api/auth/set-password', async (req, res) => {
 
     const token = jwt.sign(
       { username: cleanUsername, fullName, role },
-      JWT_SECRET,
+      JWT_SECRET || 'harion_fallback_secret_key_8829103948572019',
       { expiresIn: JWT_EXPIRES }
     );
 
@@ -371,7 +371,7 @@ app.post('/api/auth/set-password', async (req, res) => {
     });
   } catch (err) {
     console.error('Set-password error:', err);
-    res.status(500).json({ error: 'Server error.' });
+    res.status(500).json({ error: 'Server error: ' + err.message });
   }
 });
 
