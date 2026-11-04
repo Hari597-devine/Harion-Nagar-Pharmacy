@@ -13,11 +13,25 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE IF NOT EXISTS users (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   username    TEXT        UNIQUE NOT NULL,
+  email       TEXT        UNIQUE,
   full_name   TEXT        NOT NULL,
   role        TEXT        NOT NULL DEFAULT 'staff' CHECK (role IN ('admin', 'staff')),
   password_hash TEXT      DEFAULT NULL,
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure email column exists if users table was created previously without it
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'users_email_key'
+  ) THEN
+    ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE (email);
+  END IF;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
 
 -- ============================================================
 --  TABLE: medicines  (Unique index of drug names)

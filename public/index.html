@@ -819,7 +819,7 @@
         if (Array.isArray(list) && list.length) {
           S.users = {};
           list.forEach(u => {
-            S.users[u.username] = { n: u.full_name, role: u.role, has_password: u.has_password };
+            S.users[u.username] = { n: u.full_name, email: u.email || '', role: u.role, has_password: u.has_password };
           });
         }
       } catch (e) {
@@ -845,7 +845,7 @@
         if (st.stock) S.stock = st.stock.map(s => ({ id: s.id, mid: s.medicine_id, n: s.medicine_name, hs: s.hs_code, u: s.unit, b: s.batch, x: s.expiry, q: s.quantity, cost: parseFloat(s.cost_price) || 0, mrp: parseFloat(s.mrp) || 0, vat: parseFloat(s.vat) || 0 }));
         if (st.users) {
           S.users = {};
-          st.users.forEach(u => { S.users[u.username] = { n: u.full_name, role: u.role, has_password: u.has_password }; });
+          st.users.forEach(u => { S.users[u.username] = { n: u.full_name, email: u.email || '', role: u.role, has_password: u.has_password }; });
         }
 
         // Fetch recent sales for immediate display
@@ -887,62 +887,209 @@
       }
     }
 
-    function login(k, m = '') {
+    let authTab = 'signin'; // 'signin', 'signup', 'forgot', 'reset'
+    let forgotIdentifier = '';
+
+    function setAuthTab(tab, err = '', successMsg = '') {
+      authTab = tab;
+      login(null, err, successMsg);
+    }
+
+    function login(k, m = '', sMsg = '') {
       if (!k) {
         k = localStorage.getItem(USER_KEY) || Object.keys(S.users)[0] || 'rd';
       }
-      const u = S.users[k] || { n: k, role: 'admin', has_password: false };
+      const u = S.users[k] || { n: k, email: '', role: 'admin', has_password: false };
       const first = !u.has_password;
 
-      $('#app').innerHTML = `
-        <div class="card" style="max-width:360px;margin:12vh auto;padding:24px;">
-          <div style="text-align:center;margin-bottom:16px;">
-            <div style="display:inline-flex;padding:12px;background:var(--ac-light);color:var(--ac);border-radius:12px;margin-bottom:8px;">
-              ${ICONS.box}
-            </div>
-            <h2 style="font-size:18px;font-weight:700;">${e(S.cfg.name)}</h2>
-            <p class="mu" style="font-size:12px;">Sasapur, Harion-4, Sarlahi &bull; Pharmacy &amp; Hospital Inventory</p>
+      let cardContent = '';
+
+      if (authTab === 'signin') {
+        cardContent = `
+          <div style="display:flex;border-bottom:1px solid var(--bd);margin-bottom:18px;">
+            <button type="button" class="tab-btn" onclick="setAuthTab('signin')" style="flex:1;padding:8px;font-weight:600;border:none;background:none;border-bottom:2px solid var(--ac);color:var(--ac);cursor:pointer;">Sign In</button>
+            <button type="button" class="tab-btn" onclick="setAuthTab('signup')" style="flex:1;padding:8px;font-weight:600;border:none;background:none;border-bottom:2px solid transparent;color:var(--mu);cursor:pointer;">Register (Sign Up)</button>
           </div>
-          <label class="f" style="margin-bottom:10px;">Select User
-            <select onchange="login(this.value)">
-              ${Object.entries(S.users).map(([i, x]) => `<option value="${i}" ${i == k ? 'selected' : ''}>${e(x.n)} (${x.role})</option>`).join('')}
+
+          <label class="f" style="margin-bottom:10px;">Select Staff / User
+            <select id="l_select_user" onchange="login(this.value)">
+              ${Object.entries(S.users).map(([i, x]) => `<option value="${i}" ${i == k ? 'selected' : ''}>${e(x.n)} (${x.role}) ${x.email ? '• ' + e(x.email) : ''}</option>`).join('')}
             </select>
           </label>
+
           <label class="f" style="margin-bottom:10px;">
-            ${first ? 'Create Password (first login)' : 'Password'}
+            Or Username / Email
+            <input id="l_user" type="text" value="${e(k)}" placeholder="Username or Email" onkeydown="if(event.key=='Enter')$('#lp')?.focus()">
+          </label>
+
+          <label class="f" style="margin-bottom:6px;">
+            ${first ? 'Set Password (first login)' : 'Password'}
             <input id="lp" type="password" placeholder="••••••••" onkeydown="if(event.key=='Enter')doLogin('${k}')">
           </label>
+
           ${first ? `
+            <label class="f" style="margin-bottom:10px;">Recovery Email (Required for password reset)
+              <input id="l_email" type="email" placeholder="staff@hospital.com" value="${e(u.email || '')}">
+            </label>
             <label class="f" style="margin-bottom:10px;">Confirm Password
               <input id="lp2" type="password" placeholder="••••••••" onkeydown="if(event.key=='Enter')doLogin('${k}')">
             </label>` : `
-            <div style="text-align:right;margin-bottom:6px;">
-              <a href="#" onclick="event.preventDefault();S.users['${k}'].has_password=false;login('${k}')" style="font-size:11px;color:var(--ac);text-decoration:none;">Set / Reset Password?</a>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <span style="font-size:11px;color:var(--mu);">${u.email ? e(u.email) : 'No email bound'}</span>
+              <a href="#" onclick="event.preventDefault();setAuthTab('forgot')" style="font-size:12px;color:var(--ac);text-decoration:none;font-weight:500;">Forgot Password?</a>
             </div>`}
+
+          ${sMsg ? `<p style="color:#059669;background:#ecfdf5;padding:8px;border-radius:6px;font-size:12px;margin:8px 0;border:1px solid #a7f3d0;">${e(sMsg)}</p>` : ''}
           <p class="err" id="le">${e(m)}</p>
-          <button style="width:100%;margin-top:12px;height:40px;" onclick="doLogin('${k}')">
+
+          <button style="width:100%;margin-top:8px;height:42px;font-size:14px;font-weight:600;" onclick="doLogin('${k}')">
             ${first ? 'Set Password & Enter' : 'Sign In'}
           </button>
+        `;
+      } else if (authTab === 'signup') {
+        cardContent = `
+          <div style="display:flex;border-bottom:1px solid var(--bd);margin-bottom:18px;">
+            <button type="button" class="tab-btn" onclick="setAuthTab('signin')" style="flex:1;padding:8px;font-weight:600;border:none;background:none;border-bottom:2px solid transparent;color:var(--mu);cursor:pointer;">Sign In</button>
+            <button type="button" class="tab-btn" onclick="setAuthTab('signup')" style="flex:1;padding:8px;font-weight:600;border:none;background:none;border-bottom:2px solid var(--ac);color:var(--ac);cursor:pointer;">Register (Sign Up)</button>
+          </div>
+
+          <label class="f" style="margin-bottom:8px;">Full Name
+            <input id="reg_fullname" type="text" placeholder="e.g. Ram Kumar Mahato">
+          </label>
+          <label class="f" style="margin-bottom:8px;">Username
+            <input id="reg_username" type="text" placeholder="e.g. ram123" autocomplete="username">
+          </label>
+          <label class="f" style="margin-bottom:8px;">Email Address <span style="color:var(--ac);">*</span>
+            <input id="reg_email" type="email" placeholder="e.g. ram@hospital.com" autocomplete="email">
+            <small style="color:var(--mu);font-size:11px;">Needed to recover or reset password if forgotten.</small>
+          </label>
+          <label class="f" style="margin-bottom:8px;">Role
+            <select id="reg_role">
+              <option value="staff">Staff / Pharmacist</option>
+              <option value="admin">Administrator</option>
+            </select>
+          </label>
+          <label class="f" style="margin-bottom:8px;">Password (Min 4 chars)
+            <input id="reg_pwd" type="password" placeholder="••••••••">
+          </label>
+          <label class="f" style="margin-bottom:10px;">Confirm Password
+            <input id="reg_pwd2" type="password" placeholder="••••••••" onkeydown="if(event.key=='Enter')doRegister()">
+          </label>
+
+          <p class="err" id="le">${e(m)}</p>
+
+          <button style="width:100%;margin-top:6px;height:42px;font-size:14px;font-weight:600;" onclick="doRegister()">
+            Create Account &amp; Log In
+          </button>
+          <div style="text-align:center;margin-top:12px;">
+            <a href="#" onclick="event.preventDefault();setAuthTab('signin')" style="font-size:12px;color:var(--mu);text-decoration:none;">Already have an account? <span style="color:var(--ac);font-weight:600;">Sign In</span></a>
+          </div>
+        `;
+      } else if (authTab === 'forgot') {
+        cardContent = `
+          <div style="text-align:left;margin-bottom:14px;">
+            <h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">🔑 Reset Password</h3>
+            <p class="mu" style="font-size:12px;">Enter your registered Email or Username. We will send a 6-digit verification code to your email.</p>
+          </div>
+
+          <label class="f" style="margin-bottom:10px;">Username or Email
+            <input id="forgot_id" type="text" placeholder="your_username or you@email.com" value="${e(forgotIdentifier || k)}" onkeydown="if(event.key=='Enter')sendForgotOtp()">
+          </label>
+
+          <div id="forgot_email_wrapper" style="display:none;margin-bottom:10px;">
+            <label class="f">Enter Recovery Email
+              <input id="forgot_bind_email" type="email" placeholder="staff@hospital.com">
+              <small style="color:var(--ac);font-size:11px;">Attach an email to this user account for future resets.</small>
+            </label>
+          </div>
+
+          <p class="err" id="le">${e(m)}</p>
+
+          <button id="forgot_btn" style="width:100%;margin-top:8px;height:42px;font-size:14px;font-weight:600;" onclick="sendForgotOtp()">
+            Send Verification Code
+          </button>
+
+          <div style="text-align:center;margin-top:14px;">
+            <a href="#" onclick="event.preventDefault();setAuthTab('signin')" style="font-size:12px;color:var(--mu);text-decoration:none;">&larr; Back to <span style="color:var(--ac);font-weight:600;">Sign In</span></a>
+          </div>
+        `;
+      } else if (authTab === 'reset') {
+        cardContent = `
+          <div style="text-align:left;margin-bottom:14px;">
+            <h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">✉️ Enter Verification Code</h3>
+            <p class="mu" style="font-size:12px;">Enter the 6-digit verification code sent to your email, then choose a new password.</p>
+          </div>
+
+          ${sMsg ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:10px;border-radius:8px;font-size:12px;margin-bottom:12px;text-align:center;">${sMsg}</div>` : ''}
+
+          <label class="f" style="margin-bottom:10px;">Account Identifier
+            <input id="reset_id" type="text" value="${e(forgotIdentifier || k)}" readonly style="background:var(--bg);color:var(--mu);">
+          </label>
+
+          <label class="f" style="margin-bottom:10px;">6-Digit Verification Code
+            <input id="reset_otp" type="text" maxlength="6" placeholder="123456" style="letter-spacing:4px;font-size:18px;font-weight:bold;text-align:center;">
+          </label>
+
+          <label class="f" style="margin-bottom:10px;">New Password
+            <input id="reset_p1" type="password" placeholder="••••••••">
+          </label>
+
+          <label class="f" style="margin-bottom:10px;">Confirm New Password
+            <input id="reset_p2" type="password" placeholder="••••••••" onkeydown="if(event.key=='Enter')doResetPassword()">
+          </label>
+
+          <p class="err" id="le">${e(m)}</p>
+
+          <button style="width:100%;margin-top:8px;height:42px;font-size:14px;font-weight:600;" onclick="doResetPassword()">
+            Verify Code &amp; Change Password
+          </button>
+
+          <div style="display:flex;justify-content:space-between;margin-top:14px;">
+            <a href="#" onclick="event.preventDefault();setAuthTab('forgot')" style="font-size:12px;color:var(--ac);text-decoration:none;">Resend Code</a>
+            <a href="#" onclick="event.preventDefault();setAuthTab('signin')" style="font-size:12px;color:var(--mu);text-decoration:none;">Cancel &amp; Sign In</a>
+          </div>
+        `;
+      }
+
+      $('#app').innerHTML = `
+        <div class="card" style="max-width:400px;margin:8vh auto;padding:26px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1),0 8px 10px -6px rgba(0,0,0,0.1);border-radius:16px;">
+          <div style="text-align:center;margin-bottom:16px;">
+            <div style="display:inline-flex;padding:12px;background:var(--ac-light);color:var(--ac);border-radius:14px;margin-bottom:8px;">
+              ${ICONS.box}
+            </div>
+            <h2 style="font-size:18px;font-weight:800;letter-spacing:-0.02em;">${e(S.cfg.name)}</h2>
+            <p class="mu" style="font-size:12px;margin-top:2px;">Sasapur, Harion-4, Sarlahi &bull; Pharmacy &amp; Hospital Inventory</p>
+          </div>
+          ${cardContent}
         </div>`;
-      setTimeout(() => $('#lp')?.focus(), 50);
+
+      setTimeout(() => {
+        if (authTab === 'signin') $('#lp')?.focus();
+        else if (authTab === 'signup') $('#reg_fullname')?.focus();
+        else if (authTab === 'forgot') $('#forgot_id')?.focus();
+        else if (authTab === 'reset') $('#reset_otp')?.focus();
+      }, 50);
     }
 
-    async function doLogin(k) {
-      const p = $('#lp').value;
-      const u = S.users[k];
+    async function doLogin(selectedK) {
+      const inputUser = $('#l_user') ? $('#l_user').value.trim() : selectedK;
+      const p = $('#lp') ? $('#lp').value : '';
+      const emailInput = $('#l_email') ? $('#l_email').value.trim() : '';
+      const k = inputUser || selectedK;
+      const u = S.users[k] || { n: k, role: 'staff', has_password: false };
 
       if (!u.has_password) {
-        if (p.length < 4) return login(k, 'Minimum 4 characters required.');
-        if (p !== $('#lp2').value) return login(k, 'Passwords do not match.');
+        if (p.length < 4) return login(k, 'Minimum 4 characters required for password.');
+        if (p !== $('#lp2')?.value) return login(k, 'Passwords do not match.');
         try {
           const res = await apiCall('/api/auth/set-password', {
             method: 'POST',
-            body: JSON.stringify({ username: k, password: p })
+            body: JSON.stringify({ username: k, email: emailInput, password: p })
           });
           setToken(res.token);
-          localStorage.setItem(USER_KEY, k);
-          U = k;
-          u.has_password = true;
+          localStorage.setItem(USER_KEY, res.user.username);
+          U = res.user.username;
+          if (S.users[res.user.username]) S.users[res.user.username].has_password = true;
           toast('Password created successfully!');
           render();
           initialLoad().catch(() => {});
@@ -965,14 +1112,116 @@
             return login(k, 'Please create your password to continue.');
           }
           setToken(res.token);
-          localStorage.setItem(USER_KEY, k);
-          U = k;
+          localStorage.setItem(USER_KEY, res.user.username);
+          U = res.user.username;
           toast(`Welcome, ${res.user.fullName}`);
           render();
           initialLoad().catch(() => {});
         } catch (err) {
           login(k, err.message);
         }
+      }
+    }
+
+    async function doRegister() {
+      const full_name = $('#reg_fullname')?.value.trim();
+      const username  = $('#reg_username')?.value.trim();
+      const email     = $('#reg_email')?.value.trim();
+      const role      = $('#reg_role')?.value || 'staff';
+      const password  = $('#reg_pwd')?.value;
+      const p2        = $('#reg_pwd2')?.value;
+
+      if (!username || !email || !password) {
+        return login(null, 'Username, Email, and Password are all required.');
+      }
+      if (!email.includes('@') || !email.includes('.')) {
+        return login(null, 'Please provide a valid email address.');
+      }
+      if (password.length < 4) {
+        return login(null, 'Password must be at least 4 characters long.');
+      }
+      if (password !== p2) {
+        return login(null, 'Passwords do not match.');
+      }
+
+      try {
+        const res = await apiCall('/api/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({ full_name, username, email, role, password })
+        });
+        setToken(res.token);
+        localStorage.setItem(USER_KEY, res.user.username);
+        U = res.user.username;
+        S.users[res.user.username] = { n: res.user.fullName, email: res.user.email, role: res.user.role, has_password: true };
+        toast(`Account created! Welcome, ${res.user.fullName}`);
+        render();
+        initialLoad().catch(() => {});
+      } catch (err) {
+        login(null, err.message);
+      }
+    }
+
+    async function sendForgotOtp() {
+      const idInput = $('#forgot_id')?.value.trim();
+      const bindEmail = $('#forgot_bind_email')?.value.trim();
+      if (!idInput) {
+        return login(null, 'Please enter your username or registered email.');
+      }
+      forgotIdentifier = idInput;
+
+      try {
+        const res = await apiCall('/api/auth/forgot-password', {
+          method: 'POST',
+          body: JSON.stringify({ identifier: idInput, email: bindEmail })
+        });
+
+        let successMessage = res.message || 'Verification code sent to your email!';
+        if (res.previewCode) {
+          successMessage += ` (Dev/Preview Code: <b>${res.previewCode}</b>)`;
+        }
+
+        authTab = 'reset';
+        login(res.username || idInput, '', successMessage);
+        if (res.previewCode) {
+          setTimeout(() => { if ($('#reset_otp')) $('#reset_otp').value = res.previewCode; }, 100);
+        }
+      } catch (err) {
+        if (err.message && err.message.includes('No recovery email')) {
+          const wrapper = $('#forgot_email_wrapper');
+          if (wrapper) wrapper.style.display = 'block';
+          return login(null, err.message);
+        }
+        login(null, err.message);
+      }
+    }
+
+    async function doResetPassword() {
+      const id = $('#reset_id')?.value.trim() || forgotIdentifier;
+      const code = $('#reset_otp')?.value.trim();
+      const p1 = $('#reset_p1')?.value;
+      const p2 = $('#reset_p2')?.value;
+
+      if (!code || code.length < 4) {
+        return login(id, 'Please enter the verification code sent to your email.');
+      }
+      if (!p1 || p1.length < 4) {
+        return login(id, 'New password must be at least 4 characters long.');
+      }
+      if (p1 !== p2) {
+        return login(id, 'Passwords do not match.');
+      }
+
+      try {
+        const res = await apiCall('/api/auth/reset-password', {
+          method: 'POST',
+          body: JSON.stringify({ identifier: id, code, new_password: p1 })
+        });
+
+        authTab = 'signin';
+        login(id, '', res.message || 'Password reset successfully! Please log in.');
+        toast('Password updated! You can now log in.');
+      } catch (err) {
+        login(id, err.message);
       }
     }
 

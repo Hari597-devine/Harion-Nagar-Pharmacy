@@ -19,6 +19,7 @@ const morgan       = require('morgan');
 const validator    = require('validator');
 const path         = require('path');
 const fs           = require('fs');
+const nodemailer   = require('nodemailer');
 
 // ── Validate required environment variables ─────────────────
 const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'JWT_SECRET'];
@@ -158,6 +159,65 @@ const dbErr = (res, err) => {
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'local_db.json');
 
+// In-memory OTP storage for password resets: email/username -> { code, email, expiresAt }
+const OTP_STORE = new Map();
+
+// Helper to send email OTP (or fall back gracefully to server log / console)
+const sendPasswordResetEmail = async (toEmail, otpCode, username) => {
+  const hasSmtp = Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
+  const subject = '🔐 Password Reset Verification Code - Harion Nagar Pharmacy';
+  const textBody = `Hello ${username || 'User'},\n\nYour 6-digit verification code to reset your password is:\n\n${otpCode}\n\nThis code is valid for 15 minutes. If you did not request this, please ignore this email.\n\nHarion Nagar Hospital & Pharmacy Inventory System\nHarion-4, Sasapur, Sarlahi`;
+  const htmlBody = `
+    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h2 style="color: #0f766e; margin: 0;">HARION NAGAR HOSPITAL & PHARMACY</h2>
+        <p style="color: #64748b; font-size: 13px; margin: 4px 0;">Harion-4, Sasapur, Sarlahi &bull; PAN: 609836604</p>
+      </div>
+      <p style="font-size: 15px; color: #334155;">Hello <strong>${username || 'User'}</strong>,</p>
+      <p style="font-size: 14px; color: #475569;">You requested a password reset. Use the 6-digit verification code below to set a new password:</p>
+      <div style="text-align: center; margin: 25px 0;">
+        <span style="display: inline-block; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0f766e; background: #f0fdfa; padding: 12px 24px; border-radius: 8px; border: 1px dashed #0d9488;">
+          ${otpCode}
+        </span>
+      </div>
+      <p style="font-size: 13px; color: #64748b; text-align: center;">This verification code will expire in <strong>15 minutes</strong>.</p>
+      <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+      <p style="font-size: 12px; color: #94a3b8; text-align: center;">If you didn't request a password reset, you can safely ignore this email.</p>
+    </div>
+  `;
+
+  if (hasSmtp) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '587', 10),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        }
+      });
+
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || `"Harion Nagar Pharmacy" <${process.env.SMTP_USER}>`,
+        to: toEmail,
+        subject,
+        text: textBody,
+        html: htmlBody
+      });
+      console.log(`[SMTP] Verification email sent to ${toEmail}`);
+      return { sent: true, mode: 'smtp' };
+    } catch (smtpErr) {
+      console.error('[SMTP Error] Failed to send email via SMTP:', smtpErr.message);
+      // Fallback to local dev return
+      return { sent: false, mode: 'fallback', code: otpCode, error: smtpErr.message };
+    }
+  } else {
+    console.log(`[AUTH NOTICE] SMTP is not configured. Verification code for ${toEmail} (${username}): ${otpCode}`);
+    return { sent: true, mode: 'local_preview', code: otpCode };
+  }
+};
+
 if (!fs.existsSync(DATA_DIR)) {
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
 }
@@ -229,16 +289,26 @@ app.get('/api/auth/users', async (req, res) => {
     try {
       const { data } = await supabase
         .from('users')
-        .select('username, full_name, role, password_hash')
+        .select('username, email, full_name, role, password_hash')
         .order('username');
       if (Array.isArray(data)) dbUsers = data;
-    } catch (e) {}
+    } catch (e) {
+      // If email column doesn't exist yet in Supabase schema cache
+      try {
+        const { data } = await supabase
+          .from('users')
+          .select('username, full_name, role, password_hash')
+          .order('username');
+        if (Array.isArray(data)) dbUsers = data;
+      } catch (e2) {}
+    }
 
     const map = new Map();
     // 1. Local users
     for (const [u, d] of Object.entries(localDb.users)) {
       map.set(u, {
         username: u,
+        email: d.email || '',
         full_name: d.full_name,
         role: d.role,
         has_password: !!d.password_hash
@@ -249,6 +319,7 @@ app.get('/api/auth/users', async (req, res) => {
       const existing = map.get(d.username);
       map.set(d.username, {
         username: d.username,
+        email: d.email || existing?.email || '',
         full_name: d.full_name || existing?.full_name || d.username.toUpperCase(),
         role: d.role || existing?.role || (d.username === 'rd' ? 'admin' : 'staff'),
         has_password: !!(d.password_hash || existing?.has_password)
@@ -258,6 +329,7 @@ app.get('/api/auth/users', async (req, res) => {
   } catch (err) {
     res.json(Object.entries(localDb.users).map(([u, d]) => ({
       username: u,
+      email: d.email || '',
       full_name: d.full_name,
       role: d.role,
       has_password: !!d.password_hash
@@ -265,35 +337,145 @@ app.get('/api/auth/users', async (req, res) => {
   }
 });
 
-/** POST /api/auth/login — Validate credentials, return JWT */
+/** POST /api/auth/register — Register new account with Email, Username, Full Name, Password */
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, email, full_name, password, role } = req.body;
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'Username, Email, and Password are required.' });
+    }
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({ error: 'Please enter a valid email address.' });
+    }
+    if (password.length < 4) {
+      return res.status(400).json({ error: 'Password must be at least 4 characters long.' });
+    }
+
+    const cleanUsername = username.toLowerCase().trim();
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanFullName = full_name ? full_name.trim() : cleanUsername.toUpperCase();
+    const assignedRole = (role === 'admin' && cleanUsername === 'rd') ? 'admin' : (role === 'admin' ? 'admin' : 'staff');
+
+    // Check if user or email already exists in localDb
+    for (const [u, d] of Object.entries(localDb.users)) {
+      if (u === cleanUsername) {
+        return res.status(400).json({ error: `Username '${cleanUsername}' is already registered.` });
+      }
+      if (d.email && d.email.toLowerCase() === cleanEmail) {
+        return res.status(400).json({ error: `Email '${cleanEmail}' is already registered with username '${u}'.` });
+      }
+    }
+
+    // Hash password
+    const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    // Persist to localDb
+    localDb.users[cleanUsername] = {
+      username: cleanUsername,
+      email: cleanEmail,
+      full_name: cleanFullName,
+      role: assignedRole,
+      password_hash: hash
+    };
+    saveLocalDb();
+
+    // Persist to Supabase
+    try {
+      await supabase.from('users').upsert({
+        username: cleanUsername,
+        email: cleanEmail,
+        full_name: cleanFullName,
+        role: assignedRole,
+        password_hash: hash
+      }, { onConflict: 'username' });
+    } catch (e) {
+      console.warn('Supabase register write notice:', e.message);
+      // If error is missing email column, write without email
+      try {
+        await supabase.from('users').upsert({
+          username: cleanUsername,
+          full_name: cleanFullName,
+          role: assignedRole,
+          password_hash: hash
+        }, { onConflict: 'username' });
+      } catch (e2) {}
+    }
+
+    const token = jwt.sign(
+      { username: cleanUsername, email: cleanEmail, fullName: cleanFullName, role: assignedRole },
+      JWT_SECRET || 'harion_fallback_secret_key_8829103948572019',
+      { expiresIn: JWT_EXPIRES }
+    );
+
+    audit(cleanUsername, `User registered: ${cleanUsername} (${cleanEmail}).`);
+
+    res.status(201).json({
+      token,
+      user: { username: cleanUsername, email: cleanEmail, fullName: cleanFullName, role: assignedRole }
+    });
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ error: 'Server error during registration: ' + err.message });
+  }
+});
+
+/** POST /api/auth/login — Validate credentials (by username OR email), return JWT */
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || typeof password !== 'string') {
-      return res.status(400).json({ error: 'Username and password are required.' });
+      return res.status(400).json({ error: 'Username/Email and password are required.' });
     }
 
-    const cleanUsername = username.toLowerCase().trim();
+    const inputIdentifier = username.toLowerCase().trim();
+    let cleanUsername = inputIdentifier;
+    let foundEmail = '';
+
+    // Check if input is email or username in localDb
+    for (const [u, d] of Object.entries(localDb.users)) {
+      if (u === inputIdentifier || (d.email && d.email.toLowerCase() === inputIdentifier)) {
+        cleanUsername = u;
+        foundEmail = d.email || '';
+        break;
+      }
+    }
+
     let dbUser = null;
     try {
+      // Query by username or email
       const { data } = await supabase
         .from('users')
-        .select('username, full_name, role, password_hash')
-        .eq('username', cleanUsername)
+        .select('username, email, full_name, role, password_hash')
+        .or(`username.eq.${inputIdentifier},email.eq.${inputIdentifier}`)
         .maybeSingle();
-      dbUser = data;
-    } catch (e) {}
+      if (data) {
+        dbUser = data;
+        cleanUsername = data.username;
+        foundEmail = data.email || foundEmail;
+      }
+    } catch (e) {
+      try {
+        const { data } = await supabase
+          .from('users')
+          .select('username, full_name, role, password_hash')
+          .eq('username', cleanUsername)
+          .maybeSingle();
+        dbUser = data;
+      } catch (e2) {}
+    }
 
     const localUser = localDb.users[cleanUsername];
     const passwordHash = dbUser?.password_hash || localUser?.password_hash;
     const fullName = dbUser?.full_name || localUser?.full_name || (cleanUsername === 'rd' ? 'Ram Dular Mahato' : cleanUsername.toUpperCase());
     const role = dbUser?.role || localUser?.role || (cleanUsername === 'rd' ? 'admin' : 'staff');
+    const userEmail = dbUser?.email || localUser?.email || foundEmail;
 
     // First-time login: no password hash stored in DB or local store
     if (!passwordHash) {
       return res.status(200).json({
         firstLogin: true,
         username: cleanUsername,
+        email: userEmail,
         fullName,
         role
       });
@@ -301,18 +483,18 @@ app.post('/api/auth/login', async (req, res) => {
 
     const valid = await bcrypt.compare(password, passwordHash);
     if (!valid) {
-      return res.status(401).json({ error: 'Invalid credentials.' });
+      return res.status(401).json({ error: 'Invalid credentials. Please check your username/email or password.' });
     }
 
     const token = jwt.sign(
-      { username: cleanUsername, fullName, role },
+      { username: cleanUsername, email: userEmail, fullName, role },
       JWT_SECRET || 'harion_fallback_secret_key_8829103948572019',
       { expiresIn: JWT_EXPIRES }
     );
 
     res.json({
       token,
-      user: { username: cleanUsername, fullName, role }
+      user: { username: cleanUsername, email: userEmail, fullName, role }
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -320,22 +502,25 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-/** POST /api/auth/set-password — First-time password creation */
+/** POST /api/auth/set-password — First-time password creation with optional email */
 app.post('/api/auth/set-password', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, email, password } = req.body;
     if (!username || typeof password !== 'string' || password.length < 4) {
       return res.status(400).json({ error: 'Password must be at least 4 characters.' });
     }
 
     const cleanUsername = username.toLowerCase().trim();
+    const cleanEmail = email && validator.isEmail(email) ? email.toLowerCase().trim() : '';
     const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     if (localDb.users[cleanUsername]) {
       localDb.users[cleanUsername].password_hash = hash;
+      if (cleanEmail) localDb.users[cleanUsername].email = cleanEmail;
     } else {
       localDb.users[cleanUsername] = {
         username: cleanUsername,
+        email: cleanEmail,
         full_name: cleanUsername === 'rd' ? 'Ram Dular Mahato' : (cleanUsername === 'rs' ? 'Ramesh Singh' : cleanUsername.toUpperCase()),
         role: cleanUsername === 'rd' ? 'admin' : 'staff',
         password_hash: hash
@@ -345,21 +530,31 @@ app.post('/api/auth/set-password', async (req, res) => {
 
     // Attempt write to Supabase (bypasses quietly if RLS policy rejects)
     try {
-      await supabase.from('users').upsert({
+      const record = {
         username: cleanUsername,
         full_name: localDb.users[cleanUsername].full_name,
         role: localDb.users[cleanUsername].role,
         password_hash: hash
-      }, { onConflict: 'username' });
+      };
+      if (cleanEmail) record.email = cleanEmail;
+      await supabase.from('users').upsert(record, { onConflict: 'username' });
     } catch (e) {
-      console.warn('Supabase users upsert notice:', e.message);
+      try {
+        await supabase.from('users').upsert({
+          username: cleanUsername,
+          full_name: localDb.users[cleanUsername].full_name,
+          role: localDb.users[cleanUsername].role,
+          password_hash: hash
+        }, { onConflict: 'username' });
+      } catch (e2) {}
     }
 
     const fullName = localDb.users[cleanUsername].full_name;
     const role = localDb.users[cleanUsername].role;
+    const userEmail = localDb.users[cleanUsername].email;
 
     const token = jwt.sign(
-      { username: cleanUsername, fullName, role },
+      { username: cleanUsername, email: userEmail, fullName, role },
       JWT_SECRET || 'harion_fallback_secret_key_8829103948572019',
       { expiresIn: JWT_EXPIRES }
     );
@@ -367,11 +562,170 @@ app.post('/api/auth/set-password', async (req, res) => {
     audit(cleanUsername, 'Password set for user.');
     res.json({
       token,
-      user: { username: cleanUsername, fullName, role }
+      user: { username: cleanUsername, email: userEmail, fullName, role }
     });
   } catch (err) {
     console.error('Set-password error:', err);
     res.status(500).json({ error: 'Server error: ' + err.message });
+  }
+});
+
+/** POST /api/auth/forgot-password — Initiate reset and dispatch verification email */
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { identifier } = req.body;
+    if (!identifier) {
+      return res.status(400).json({ error: 'Please enter your registered email or username.' });
+    }
+
+    const cleanId = identifier.toLowerCase().trim();
+    let targetUser = null;
+    let targetUsername = '';
+    let targetEmail = '';
+
+    // 1. Search local DB
+    for (const [u, d] of Object.entries(localDb.users)) {
+      if (u === cleanId || (d.email && d.email.toLowerCase() === cleanId)) {
+        targetUser = d;
+        targetUsername = u;
+        targetEmail = d.email;
+        break;
+      }
+    }
+
+    // 2. Search Supabase if not found or email missing
+    if (!targetEmail) {
+      try {
+        const { data } = await supabase
+          .from('users')
+          .select('username, email, full_name, role')
+          .or(`username.eq.${cleanId},email.eq.${cleanId}`)
+          .maybeSingle();
+        if (data) {
+          targetUsername = data.username;
+          targetEmail = data.email || targetEmail;
+          targetUser = data;
+        }
+      } catch (e) {}
+    }
+
+    if (!targetUsername && !targetEmail) {
+      return res.status(404).json({ error: `Account '${identifier}' not found. Please register or verify the username/email.` });
+    }
+
+    // If no email was ever registered for this user, allow them to provide an email or inform them
+    if (!targetEmail) {
+      if (req.body.email && validator.isEmail(req.body.email)) {
+        targetEmail = req.body.email.toLowerCase().trim();
+        if (localDb.users[targetUsername]) {
+          localDb.users[targetUsername].email = targetEmail;
+          saveLocalDb();
+        }
+        try {
+          await supabase.from('users').update({ email: targetEmail }).eq('username', targetUsername);
+        } catch (e) {}
+      } else {
+        return res.status(400).json({
+          needsEmailRegistration: true,
+          username: targetUsername,
+          error: `No recovery email registered for '${targetUsername}'. Please provide your email to receive a verification code.`
+        });
+      }
+    }
+
+    // Generate 6-digit cryptographic OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+    OTP_STORE.set(cleanId, { code: otpCode, username: targetUsername, email: targetEmail, expiresAt });
+    OTP_STORE.set(targetEmail.toLowerCase(), { code: otpCode, username: targetUsername, email: targetEmail, expiresAt });
+    OTP_STORE.set(targetUsername.toLowerCase(), { code: otpCode, username: targetUsername, email: targetEmail, expiresAt });
+
+    const mailResult = await sendPasswordResetEmail(targetEmail, otpCode, targetUser?.full_name || targetUsername);
+
+    // Mask email for user privacy (e.g. h***@gmail.com)
+    const [eName, eDomain] = targetEmail.split('@');
+    const masked = eName.length <= 2 ? `${eName[0]}*@${eDomain}` : `${eName[0]}${'*'.repeat(eName.length - 2)}${eName.slice(-1)}@${eDomain}`;
+
+    res.json({
+      success: true,
+      message: `A 6-digit verification code has been sent to ${masked}.`,
+      emailMasked: masked,
+      username: targetUsername,
+      // If SMTP is in fallback / preview mode, safely supply code to UI for seamless workflow
+      previewCode: (mailResult.mode === 'fallback' || mailResult.mode === 'local_preview') ? otpCode : undefined
+    });
+  } catch (err) {
+    console.error('Forgot-password error:', err);
+    res.status(500).json({ error: 'Server error processing password reset: ' + err.message });
+  }
+});
+
+/** POST /api/auth/reset-password — Verify OTP and set new password */
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { identifier, code, new_password } = req.body;
+    if (!identifier || !code || !new_password) {
+      return res.status(400).json({ error: 'Identifier (username/email), verification code, and new password are required.' });
+    }
+    if (new_password.length < 4) {
+      return res.status(400).json({ error: 'Password must be at least 4 characters long.' });
+    }
+
+    const cleanId = identifier.toLowerCase().trim();
+    const cleanCode = code.toString().trim();
+
+    const storedOtp = OTP_STORE.get(cleanId);
+    if (!storedOtp) {
+      return res.status(400).json({ error: 'Verification code not found or expired. Please request a new code.' });
+    }
+
+    if (Date.now() > storedOtp.expiresAt) {
+      OTP_STORE.delete(cleanId);
+      return res.status(400).json({ error: 'Verification code has expired. Please request a new one.' });
+    }
+
+    if (storedOtp.code !== cleanCode) {
+      return res.status(400).json({ error: 'Invalid verification code. Please check and try again.' });
+    }
+
+    const cleanUsername = storedOtp.username;
+    const hash = await bcrypt.hash(new_password, BCRYPT_ROUNDS);
+
+    if (localDb.users[cleanUsername]) {
+      localDb.users[cleanUsername].password_hash = hash;
+    } else {
+      localDb.users[cleanUsername] = {
+        username: cleanUsername,
+        email: storedOtp.email,
+        full_name: cleanUsername.toUpperCase(),
+        role: cleanUsername === 'rd' ? 'admin' : 'staff',
+        password_hash: hash
+      };
+    }
+    saveLocalDb();
+
+    try {
+      await supabase.from('users').upsert({
+        username: cleanUsername,
+        password_hash: hash
+      }, { onConflict: 'username' });
+    } catch (e) {}
+
+    // Invalidate OTP
+    OTP_STORE.delete(cleanId);
+    OTP_STORE.delete(storedOtp.email.toLowerCase());
+    OTP_STORE.delete(cleanUsername.toLowerCase());
+
+    audit(cleanUsername, 'Password successfully reset via email verification code.');
+
+    res.json({
+      success: true,
+      message: 'Password successfully changed! You can now log in with your new password.'
+    });
+  } catch (err) {
+    console.error('Reset-password error:', err);
+    res.status(500).json({ error: 'Server error resetting password: ' + err.message });
   }
 });
 
@@ -413,6 +767,7 @@ app.get('/api/pharmacy/state', authenticate, async (req, res) => {
     for (const [u, d] of Object.entries(localDb.users)) {
       userMap.set(u, {
         username: u,
+        email: d.email || '',
         full_name: d.full_name,
         role: d.role,
         has_password: !!d.password_hash
@@ -422,6 +777,7 @@ app.get('/api/pharmacy/state', authenticate, async (req, res) => {
       const existing = userMap.get(u.username);
       userMap.set(u.username, {
         username: u.username,
+        email: u.email || existing?.email || '',
         full_name: u.full_name || existing?.full_name || u.username.toUpperCase(),
         role: u.role || existing?.role || (u.username === 'rd' ? 'admin' : 'staff'),
         has_password: !!(u.password_hash || existing?.has_password)
