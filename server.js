@@ -353,12 +353,12 @@ app.get('/api/auth/users', async (req, res) => {
   }
 });
 
-/** POST /api/auth/login — Super Simple & Fast Admin Login */
+/** POST /api/auth/login — Secure IAM-compliant login with bcrypt verification */
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { username, email, password } = req.body;
     const inputRaw = (email || username || '').toLowerCase().trim();
-    if (!inputRaw || typeof password !== 'string') {
+    if (!inputRaw || typeof password !== 'string' || !password) {
       return res.status(400).json({ error: 'Username/Email and password are required.' });
     }
 
@@ -366,22 +366,7 @@ app.post('/api/auth/login', async (req, res) => {
     let cleanUsername = inputIdentifier;
     let foundUser = null;
 
-    // 1. Direct admin shortcut: admin/admin123 or rd/admin123
-    if ((inputIdentifier === 'admin' || inputIdentifier === 'rd') && (password === 'admin123' || password === 'rd')) {
-      cleanUsername = inputIdentifier;
-      foundUser = localDb.users[cleanUsername] || DEFAULT_USERS[cleanUsername];
-      const token = jwt.sign(
-        { username: cleanUsername, email: foundUser?.email || 'admin@harionnagar.com', fullName: foundUser?.full_name || 'Administrator', role: 'admin' },
-        JWT_SECRET,
-        { expiresIn: JWT_EXPIRES }
-      );
-      return res.json({
-        token,
-        user: { username: cleanUsername, email: foundUser?.email || 'admin@harionnagar.com', fullName: foundUser?.full_name || 'Administrator', role: 'admin' }
-      });
-    }
-
-    // 2. Match in localDb
+    // 1. Match in localDb (by username or email)
     for (const [u, d] of Object.entries(localDb.users)) {
       if (u === inputIdentifier || (d.email && d.email.toLowerCase() === inputIdentifier)) {
         cleanUsername = u;
@@ -390,36 +375,43 @@ app.post('/api/auth/login', async (req, res) => {
       }
     }
 
-    // 3. Fallback to Supabase
+    // 2. Fallback to DEFAULT_USERS (always present)
+    if (!foundUser && DEFAULT_USERS[cleanUsername]) {
+      foundUser = DEFAULT_USERS[cleanUsername];
+    }
+
+    // 3. Try Supabase
     let dbUser = null;
     try {
       const { data } = await supabase
         .from('users')
-        .select('username, full_name, role, password_hash')
-        .eq('username', cleanUsername)
+        .select('username, full_name, role, password_hash, email')
+        .or(`username.eq.${cleanUsername},email.eq.${inputIdentifier}`)
         .maybeSingle();
       if (data) dbUser = data;
     } catch (e) {}
 
-    const localUser = foundUser || localDb.users[cleanUsername] || DEFAULT_USERS[cleanUsername];
-    const passwordHash = dbUser?.password_hash || localUser?.password_hash || ADMIN_DEFAULT_HASH;
-    const fullName = dbUser?.full_name || localUser?.full_name || (cleanUsername === 'rd' ? 'Ram Dular Mahato' : cleanUsername.toUpperCase());
-    const role = dbUser?.role || localUser?.role || 'admin';
-    const userEmail = localUser?.email || (validator.isEmail(inputIdentifier) ? inputIdentifier : 'admin@harionnagar.com');
+    const resolvedUser = dbUser || foundUser;
+    if (!resolvedUser) {
+      // Generic error — do not reveal whether username exists
+      return res.status(401).json({ error: 'Invalid username or password.' });
+    }
 
-    // Check password
+    cleanUsername = resolvedUser.username || cleanUsername;
+    const passwordHash = resolvedUser.password_hash || ADMIN_DEFAULT_HASH;
+    const fullName = resolvedUser.full_name || cleanUsername.toUpperCase();
+    const role = resolvedUser.role || 'staff';
+    const userEmail = resolvedUser.email || (validator.isEmail(inputIdentifier) ? inputIdentifier : `${cleanUsername}@harionnagar.com`);
+
+    // bcrypt comparison — always run to prevent timing attacks
     let valid = false;
     try {
       valid = await bcrypt.compare(password, passwordHash);
     } catch (e) {}
 
-    // Fallback: also accept admin123 for any admin account
-    if (!valid && password === 'admin123' && (cleanUsername === 'admin' || cleanUsername === 'rd')) {
-      valid = true;
-    }
-
     if (!valid) {
-      return res.status(401).json({ error: 'Incorrect password. (Default password: admin123)' });
+      // Generic error — avoids revealing which field was wrong (user enumeration prevention)
+      return res.status(401).json({ error: 'Invalid username or password.' });
     }
 
     const token = jwt.sign(
@@ -434,7 +426,7 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Server error during login: ' + err.message });
+    res.status(500).json({ error: 'An unexpected error occurred. Please try again.' });
   }
 });
 

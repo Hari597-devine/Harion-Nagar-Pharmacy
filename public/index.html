@@ -884,63 +884,86 @@
     }
 
     // ============================================================
-    //  SIMPLE, CLEAN ADMIN LOGIN (Easy, No Repeated Setup)
+    //  SECURE ADMIN LOGIN — IAM-compliant, all-browser compatible
     // ============================================================
     function login(k, m = '', sMsg = '') {
-      const activeUser = k || localStorage.getItem(USER_KEY) || 'admin';
+      const activeUser = k || localStorage.getItem(USER_KEY) || '';
 
       $('#app').innerHTML = `
-        <div class="card" style="max-width:380px;margin:10vh auto;padding:28px 24px;box-shadow:0 12px 30px -8px rgba(0,0,0,0.15);border-radius:16px;">
-          <div style="text-align:center;margin-bottom:20px;">
-            <div style="display:inline-flex;padding:12px;background:var(--ac-light);color:var(--ac);border-radius:14px;margin-bottom:8px;">
+        <div class="card" style="max-width:380px;margin:10vh auto;padding:32px 28px;box-shadow:0 12px 40px -8px rgba(0,0,0,0.18);border-radius:18px;">
+          <div style="text-align:center;margin-bottom:24px;">
+            <div style="display:inline-flex;padding:14px;background:var(--ac-light);color:var(--ac);border-radius:16px;margin-bottom:10px;">
               ${ICONS.box}
             </div>
-            <h2 style="font-size:18px;font-weight:800;letter-spacing:-0.02em;">${e(S.cfg.name)}</h2>
-            <p class="mu" style="font-size:12px;margin-top:2px;">Harion-4, Sasapur, Sarlahi &bull; Hospital &amp; Pharmacy</p>
+            <h2 style="font-size:19px;font-weight:800;letter-spacing:-0.02em;">${e(S.cfg.name)}</h2>
+            <p class="mu" style="font-size:12px;margin-top:3px;">Harion-4, Sasapur, Sarlahi &bull; Hospital &amp; Pharmacy</p>
           </div>
 
-          <label class="f" style="margin-bottom:12px;">Admin Username or Email
-            <input id="login_user" type="text" value="${e(activeUser)}" placeholder="admin" autocomplete="username" onkeydown="if(event.key=='Enter')$('#login_pwd')?.focus()">
+          <label class="f" style="margin-bottom:14px;">
+            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">Username or Email</span>
+            <input id="login_user" type="text" value="${e(activeUser)}" placeholder="Enter your username" autocomplete="username"
+              onkeydown="if(event.key==='Enter')document.getElementById('login_pwd')?.focus()"
+              style="margin-top:5px;">
           </label>
 
-          <label class="f" style="margin-bottom:12px;">Password
-            <input id="login_pwd" type="password" value="admin123" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key=='Enter')doSignIn()">
+          <label class="f" style="margin-bottom:6px;">
+            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">Password</span>
+            <div style="position:relative;margin-top:5px;">
+              <input id="login_pwd" type="password" placeholder="Enter your password" autocomplete="current-password"
+                onkeydown="if(event.key==='Enter')doSignIn()"
+                style="width:100%;padding-right:44px;">
+              <button type="button" onclick="togglePwdVis('login_pwd','eye_icon')"
+                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:4px;line-height:1;"
+                title="Show / Hide password" aria-label="Toggle password visibility">
+                <span id="eye_icon">👁</span>
+              </button>
+            </div>
           </label>
+
+          <div style="text-align:right;margin-bottom:16px;">
+            <a href="#" onclick="event.preventDefault();showPasswordResetModal()" style="color:var(--ac);font-size:12px;font-weight:600;text-decoration:none;">Forgot password?</a>
+          </div>
 
           ${sMsg ? `<p style="color:#059669;background:#ecfdf5;padding:10px;border-radius:8px;font-size:12px;margin-bottom:12px;border:1px solid #a7f3d0;">${sMsg}</p>` : ''}
-          <p class="err" id="le" style="margin-bottom:10px;">${e(m)}</p>
+          <p class="err" id="le" style="margin-bottom:12px;min-height:18px;">${e(m)}</p>
 
-          <button id="btn_signin" style="width:100%;height:44px;font-size:14px;font-weight:700;border-radius:10px;background:var(--ac);color:#fff;margin-bottom:10px;cursor:pointer;" onclick="doSignIn()">
-            Sign In &amp; Enter Dashboard &rarr;
+          <button id="btn_signin" style="width:100%;height:46px;font-size:15px;font-weight:700;border-radius:12px;background:var(--ac);color:#fff;cursor:pointer;letter-spacing:0.01em;" onclick="doSignIn()">
+            Sign In &rarr;
           </button>
 
-          <button type="button" class="g" style="width:100%;height:38px;font-size:13px;font-weight:600;border-radius:10px;border:1px dashed var(--ac);color:var(--ac);background:var(--ac-light);margin-bottom:14px;cursor:pointer;" onclick="quickAdminLogin()">
-            ⚡ 1-Click Quick Admin Access
-          </button>
-
-          <div style="text-align:center;font-size:12px;color:var(--mu);line-height:1.6;">
-            <span>Default Login: <b>admin</b> &bull; Password: <b>admin123</b></span><br>
-            <a href="#" onclick="event.preventDefault();showPasswordResetModal()" style="color:var(--ac);text-decoration:none;font-weight:600;">Change / Update Password?</a>
-          </div>
+          <p style="text-align:center;font-size:11px;color:var(--mu);margin-top:18px;line-height:1.5;">
+            🔒 Secured with bcrypt &bull; Contact admin if locked out
+          </p>
         </div>`;
 
       setTimeout(() => {
-        if ($('#login_pwd')) $('#login_pwd').focus();
+        const userField = document.getElementById('login_user');
+        const pwdField = document.getElementById('login_pwd');
+        if (userField && !userField.value) userField.focus();
+        else if (pwdField) pwdField.focus();
       }, 50);
     }
 
-    async function quickAdminLogin() {
-      if ($('#login_user')) $('#login_user').value = 'admin';
-      if ($('#login_pwd')) $('#login_pwd').value = 'admin123';
-      await doSignIn('admin', 'admin123');
+    function togglePwdVis(inputId, iconId) {
+      const inp = document.getElementById(inputId);
+      const ico = document.getElementById(iconId);
+      if (!inp) return;
+      if (inp.type === 'password') { inp.type = 'text'; if (ico) ico.textContent = '🙈'; }
+      else { inp.type = 'password'; if (ico) ico.textContent = '👁'; }
+      inp.focus();
     }
 
     async function doSignIn(customUser, customPwd) {
-      const u = (customUser || $('#login_user')?.value || 'admin').trim();
-      const p = customPwd || $('#login_pwd')?.value || 'admin123';
+      const u = (customUser || document.getElementById('login_user')?.value || '').trim();
+      const p = customPwd || document.getElementById('login_pwd')?.value || '';
 
-      const btn = $('#btn_signin');
-      if (btn) { btn.disabled = true; btn.textContent = 'Entering Dashboard...'; }
+      if (!u || !p) {
+        login(u, 'Please enter your username and password.');
+        return;
+      }
+
+      const btn = document.getElementById('btn_signin');
+      if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
 
       try {
         const res = await apiCall('/api/auth/login', {
@@ -948,18 +971,18 @@
           body: JSON.stringify({ username: u, password: p })
         });
 
-        // Store permanent token and user
         setToken(res.token);
         localStorage.setItem(USER_KEY, res.user.username);
         U = res.user.username;
         S.users[U] = { n: res.user.fullName || U, email: res.user.email || '', role: res.user.role || 'admin', has_password: true };
 
         toast(`Welcome back, ${res.user.fullName || U}!`);
-        render(); // Open dashboard immediately
+        render();
         initialLoad().catch(() => {});
       } catch (err) {
-        if (btn) { btn.disabled = false; btn.innerHTML = 'Sign In &amp; Enter Dashboard &rarr;'; }
-        login(u, err.message);
+        if (btn) { btn.disabled = false; btn.innerHTML = 'Sign In &rarr;'; }
+        // Generic error message — avoids leaking whether username or password was wrong
+        login(u, 'Invalid username or password. Please try again.');
       }
     }
 
@@ -967,21 +990,34 @@
       const modal = document.createElement('div');
       modal.className = 'ov';
       modal.innerHTML = `
-        <div class="card" style="max-width:360px;padding:24px;border-radius:14px;">
-          <h3 style="font-size:16px;font-weight:700;margin-bottom:4px;">🔑 Update Admin Password</h3>
-          <p class="mu" style="font-size:12px;margin-bottom:14px;">Set a new password for your admin account.</p>
-          <label class="f" style="margin-bottom:10px;">Username
-            <input id="modal_u" type="text" value="${e(U || 'admin')}" readonly style="background:var(--bg);color:var(--mu);">
+        <div class="card" style="max-width:380px;padding:28px;border-radius:16px;">
+          <h3 style="font-size:17px;font-weight:800;margin-bottom:4px;">🔑 Change Password</h3>
+          <p class="mu" style="font-size:12px;margin-bottom:18px;">Enter your username and set a new password.</p>
+
+          <label class="f" style="margin-bottom:12px;">
+            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">Username</span>
+            <input id="modal_u" type="text" value="${e(U || '')}" placeholder="Enter your username" autocomplete="username" style="margin-top:5px;">
           </label>
-          <label class="f" style="margin-bottom:10px;">New Password (Min 4 chars)
-            <input id="modal_p1" type="password" placeholder="••••••••">
+
+          <label class="f" style="margin-bottom:12px;">
+            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">New Password (min. 6 chars)</span>
+            <div style="position:relative;margin-top:5px;">
+              <input id="modal_p1" type="password" placeholder="Enter new password" autocomplete="new-password" style="width:100%;padding-right:44px;">
+              <button type="button" onclick="togglePwdVis('modal_p1','modal_eye1')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:4px;" title="Toggle visibility"><span id="modal_eye1">👁</span></button>
+            </div>
           </label>
-          <label class="f" style="margin-bottom:14px;">Confirm New Password
-            <input id="modal_p2" type="password" placeholder="••••••••">
+
+          <label class="f" style="margin-bottom:16px;">
+            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">Confirm New Password</span>
+            <div style="position:relative;margin-top:5px;">
+              <input id="modal_p2" type="password" placeholder="Re-enter new password" autocomplete="new-password" style="width:100%;padding-right:44px;">
+              <button type="button" onclick="togglePwdVis('modal_p2','modal_eye2')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:4px;" title="Toggle visibility"><span id="modal_eye2">👁</span></button>
+            </div>
           </label>
-          <p class="err" id="modal_err" style="margin-bottom:10px;"></p>
-          <div style="display:flex;gap:8px;">
-            <button id="modal_save_btn" style="flex:1;">Save Password</button>
+
+          <p class="err" id="modal_err" style="margin-bottom:12px;min-height:18px;"></p>
+          <div style="display:flex;gap:10px;">
+            <button id="modal_save_btn" style="flex:1;font-weight:700;">Save Password</button>
             <button class="g" id="modal_close_btn" style="flex:1;">Cancel</button>
           </div>
         </div>
@@ -990,32 +1026,37 @@
       const p1 = modal.querySelector('#modal_p1');
       const p2 = modal.querySelector('#modal_p2');
       const err = modal.querySelector('#modal_err');
-      p1.focus();
+      modal.querySelector('#modal_u').focus();
 
       modal.querySelector('#modal_close_btn').onclick = () => modal.remove();
       modal.querySelector('#modal_save_btn').onclick = async () => {
-        if (!p1.value || p1.value.length < 4) {
-          err.textContent = 'Password must be at least 4 characters.';
+        const uVal = modal.querySelector('#modal_u').value.trim();
+        if (!uVal) { err.textContent = 'Please enter your username.'; return; }
+        if (!p1.value || p1.value.length < 6) {
+          err.textContent = 'Password must be at least 6 characters.';
           return;
         }
         if (p1.value !== p2.value) {
           err.textContent = 'Passwords do not match.';
           return;
         }
+        const saveBtn = modal.querySelector('#modal_save_btn');
+        saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
         try {
           const res = await apiCall('/api/auth/set-password', {
             method: 'POST',
-            body: JSON.stringify({ username: modal.querySelector('#modal_u').value, password: p1.value })
+            body: JSON.stringify({ username: uVal, password: p1.value })
           });
           modal.remove();
-          toast('Password updated successfully!');
+          toast('✅ Password changed successfully!');
           if (res.token) {
             setToken(res.token);
             U = res.user.username;
             render();
           }
         } catch (e) {
-          err.textContent = e.message;
+          saveBtn.disabled = false; saveBtn.textContent = 'Save Password';
+          err.textContent = e.message || 'Failed to update password.';
         }
       };
     }
