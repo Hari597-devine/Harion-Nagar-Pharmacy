@@ -1,14 +1,17 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>HARION NAGAR HOSPITAL & PHARMACY INVENTORY — Management System</title>
-  
+
   <!-- Typography: Inter for clean UI, JetBrains Mono for financial figures & codes -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
 
   <style>
     :root {
@@ -32,7 +35,7 @@
       padding-top: env(safe-area-inset-top, 0px);
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-    
+
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) {
         --bg: #0f172a;
@@ -51,6 +54,7 @@
         --warn-bg: #451a03;
       }
     }
+
     :root[data-theme="dark"] {
       --bg: #0f172a;
       --cd: #1e293b;
@@ -68,7 +72,12 @@
       --warn-bg: #451a03;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       background: var(--bg);
       color: var(--tx);
@@ -90,9 +99,15 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
-    #offline-banner.visible { display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+    #offline-banner.visible {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
 
     header {
       display: flex;
@@ -103,12 +118,26 @@
       background: var(--ac);
       color: #fff;
       flex-wrap: wrap;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
-    .header-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
-    .header-user { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .header-user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+
     .user-badge {
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.2);
       padding: 3px 8px;
       border-radius: 12px;
       font-size: 11px;
@@ -126,6 +155,7 @@
       overflow-x: auto;
       scrollbar-width: thin;
     }
+
     nav button {
       white-space: nowrap;
       padding: 8px 14px;
@@ -141,11 +171,13 @@
       transition: all 0.15s ease;
       cursor: pointer;
     }
+
     nav button:hover {
       color: var(--tx);
       background: var(--bg);
       border-color: var(--bd);
     }
+
     nav button.on {
       background: var(--ac);
       color: #fff;
@@ -165,8 +197,9 @@
       border-radius: 8px;
       padding: 18px;
       margin: 12px 0;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
     }
+
     .card h3 {
       font-size: 16px;
       font-weight: 700;
@@ -177,7 +210,9 @@
       color: var(--tx);
     }
 
-    input, select, textarea {
+    input,
+    select,
+    textarea {
       width: 100%;
       padding: 8px 12px;
       border: 1px solid var(--bd);
@@ -189,12 +224,18 @@
       margin: 4px 0;
       transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
-    input:focus, select:focus, textarea:focus {
+
+    input:focus,
+    select:focus,
+    textarea:focus {
       outline: none;
       border-color: var(--ac);
       box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
     }
-    input[type="number"] { font-family: var(--mono); }
+
+    input[type="number"] {
+      font-family: var(--mono);
+    }
 
     button {
       display: inline-flex;
@@ -212,20 +253,35 @@
       cursor: pointer;
       transition: background 0.15s ease, transform 0.05s ease;
     }
-    button:hover { background: var(--ac-hover); }
-    button:active { transform: scale(0.98); }
+
+    button:hover {
+      background: var(--ac-hover);
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
     button.g {
       background: transparent;
       color: var(--tx);
       border: 1px solid var(--bd);
       font-weight: 500;
     }
-    button.g:hover { background: var(--bg); border-color: var(--mu); }
+
+    button.g:hover {
+      background: var(--bg);
+      border-color: var(--mu);
+    }
+
     button.danger {
       background: var(--er);
       color: #fff;
     }
-    button.danger:hover { background: #b91c1c; }
+
+    button.danger:hover {
+      background: #b91c1c;
+    }
 
     .row {
       display: flex;
@@ -234,9 +290,21 @@
       margin: 6px 0;
       align-items: flex-end;
     }
-    .row > * { flex: 1 1 110px; }
-    .row > select, .row > .w { flex: 3 1 240px; }
-    .row > button { flex: 0 0 auto; height: 38px; margin: 4px 0; }
+
+    .row>* {
+      flex: 1 1 110px;
+    }
+
+    .row>select,
+    .row>.w {
+      flex: 3 1 240px;
+    }
+
+    .row>button {
+      flex: 0 0 auto;
+      height: 38px;
+      margin: 4px 0;
+    }
 
     .f {
       display: flex;
@@ -246,17 +314,35 @@
       font-weight: 500;
       flex: 1 1 120px;
     }
-    .f input, .f select { margin-top: 4px; }
-    .row > .f.w { flex: 3 1 240px; }
 
-    .x { overflow-x: auto; scrollbar-width: thin; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td {
+    .f input,
+    .f select {
+      margin-top: 4px;
+    }
+
+    .row>.f.w {
+      flex: 3 1 240px;
+    }
+
+    .x {
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
       padding: 8px 10px;
       border-bottom: 1px solid var(--bd);
       text-align: left;
       white-space: nowrap;
     }
+
     th {
       font-weight: 600;
       color: var(--mu);
@@ -265,13 +351,38 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    td.n, th.n { text-align: right; font-family: var(--mono); }
-    td.mono { font-family: var(--mono); }
-    tr:hover td { background: rgba(0,0,0,0.015); }
 
-    .err { color: var(--er); font-size: 12px; min-height: 1.2em; margin-top: 4px; font-weight: 500; }
-    .warn { color: var(--warn); font-weight: 600; }
-    .mu { color: var(--mu); font-size: 12px; }
+    td.n,
+    th.n {
+      text-align: right;
+      font-family: var(--mono);
+    }
+
+    td.mono {
+      font-family: var(--mono);
+    }
+
+    tr:hover td {
+      background: rgba(0, 0, 0, 0.015);
+    }
+
+    .err {
+      color: var(--er);
+      font-size: 12px;
+      min-height: 1.2em;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    .warn {
+      color: var(--warn);
+      font-weight: 600;
+    }
+
+    .mu {
+      color: var(--mu);
+      font-size: 12px;
+    }
 
     .ov {
       position: fixed;
@@ -284,7 +395,12 @@
       padding: 16px;
       z-index: 50;
     }
-    .ov .card { width: 100%; margin: 0; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); }
+
+    .ov .card {
+      width: 100%;
+      margin: 0;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    }
 
     .toast {
       position: fixed;
@@ -296,7 +412,7 @@
       padding: 10px 18px;
       border-radius: 8px;
       z-index: 60;
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.25);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.25);
       font-size: 13px;
       font-weight: 500;
       display: flex;
@@ -305,10 +421,30 @@
       pointer-events: none;
       animation: fadeIn 0.2s ease;
     }
-    @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
-    .exp { background: var(--er-bg); color: var(--er); font-weight: 600; }
-    .nex { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translate(-50%, 8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+    }
+
+    .exp {
+      background: var(--er-bg);
+      color: var(--er);
+      font-weight: 600;
+    }
+
+    .nex {
+      background: var(--warn-bg);
+      color: var(--warn);
+      font-weight: 600;
+    }
 
     /* Dashboard Metric Cards Grid */
     .metric-grid {
@@ -317,6 +453,7 @@
       gap: 14px;
       margin-bottom: 16px;
     }
+
     .metric-card {
       background: var(--cd);
       border: 1px solid var(--bd);
@@ -328,6 +465,7 @@
       position: relative;
       overflow: hidden;
     }
+
     .metric-card::before {
       content: '';
       position: absolute;
@@ -337,9 +475,19 @@
       height: 3px;
       background: var(--ac);
     }
-    .metric-card.warn::before { background: var(--warn); }
-    .metric-card.danger::before { background: var(--er); }
-    .metric-card.success::before { background: var(--ok); }
+
+    .metric-card.warn::before {
+      background: var(--warn);
+    }
+
+    .metric-card.danger::before {
+      background: var(--er);
+    }
+
+    .metric-card.success::before {
+      background: var(--ok);
+    }
+
     .metric-label {
       font-size: 12px;
       color: var(--mu);
@@ -350,33 +498,90 @@
       align-items: center;
       gap: 6px;
     }
+
     .metric-value {
       font-size: 24px;
       font-weight: 700;
       font-family: var(--mono);
       color: var(--tx);
     }
+
     .metric-sub {
       font-size: 11px;
       color: var(--mu);
     }
 
     /* Print View Modal Styling */
-    .pv .bh { display: flex; justify-content: space-between; margin: 6px 0; }
-    .pv .r { text-align: right; }
-    .pv .c { text-align: center; margin: 6px 0; }
-    .pv table { width: 100%; border-collapse: collapse; border-top: 1px solid #000; border-bottom: 1px solid #000; }
-    .pv th, .pv td { padding: 4px 6px; border: 0; color: #000; white-space: normal; font-size: 11px; }
-    .pv th { border-bottom: 1px solid #000; font-weight: 700; }
-    .pv .n { text-align: right; font-family: var(--mono); }
-    .pv hr { border: 0; border-top: 1px solid #000; margin: 4px 0; }
+    .pv .bh {
+      display: flex;
+      justify-content: space-between;
+      margin: 6px 0;
+    }
 
-    #bill { display: none; }
+    .pv .r {
+      text-align: right;
+    }
+
+    .pv .c {
+      text-align: center;
+      margin: 6px 0;
+    }
+
+    .pv table {
+      width: 100%;
+      border-collapse: collapse;
+      border-top: 1px solid #000;
+      border-bottom: 1px solid #000;
+    }
+
+    .pv th,
+    .pv td {
+      padding: 4px 6px;
+      border: 0;
+      color: #000;
+      white-space: normal;
+      font-size: 11px;
+    }
+
+    .pv th {
+      border-bottom: 1px solid #000;
+      font-weight: 700;
+    }
+
+    .pv .n {
+      text-align: right;
+      font-family: var(--mono);
+    }
+
+    .pv hr {
+      border: 0;
+      border-top: 1px solid #000;
+      margin: 4px 0;
+    }
+
+    #bill {
+      display: none;
+    }
+
     /* Dynamic Print Page Styling (configured via print toolbar) */
-    @page { size: auto; margin: 8mm; }
+    @page {
+      size: auto;
+      margin: 8mm;
+    }
+
     @media print {
-      #app, .toast, .ov, #offline-banner { display: none !important; }
-      body { background: #fff !important; }
+
+      #app,
+      .toast,
+      .ov,
+      #offline-banner {
+        display: none !important;
+      }
+
+      body {
+        background: #fff !important;
+      }
+
       #bill {
         display: block !important;
         color: #000 !important;
@@ -384,16 +589,61 @@
         font: 11px Arial, sans-serif !important;
         width: 100% !important;
       }
-      #bill .bh { display: flex; justify-content: space-between; margin: 4px 0; }
-      #bill .r { text-align: right; }
-      #bill .c { text-align: center; margin: 4px 0; }
-      #bill table { border-top: 1px solid #000; border-bottom: 1px solid #000; width: 100%; }
-      #bill th, #bill td { padding: 3px 4px; border: 0; white-space: normal; color: #000; font-size: 11px; }
-      #bill th { border-bottom: 1px solid #000; font-weight: 700; }
-      #bill .n { text-align: right; font-family: 'JetBrains Mono', monospace; }
-      #bill hr { border: 0; border-top: 1px solid #000; margin: 4px 0; }
-      .bill-copy { page-break-after: always; padding-bottom: 12mm; }
-      .bill-copy:last-child { page-break-after: avoid; }
+
+      #bill .bh {
+        display: flex;
+        justify-content: space-between;
+        margin: 4px 0;
+      }
+
+      #bill .r {
+        text-align: right;
+      }
+
+      #bill .c {
+        text-align: center;
+        margin: 4px 0;
+      }
+
+      #bill table {
+        border-top: 1px solid #000;
+        border-bottom: 1px solid #000;
+        width: 100%;
+      }
+
+      #bill th,
+      #bill td {
+        padding: 3px 4px;
+        border: 0;
+        white-space: normal;
+        color: #000;
+        font-size: 11px;
+      }
+
+      #bill th {
+        border-bottom: 1px solid #000;
+        font-weight: 700;
+      }
+
+      #bill .n {
+        text-align: right;
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      #bill hr {
+        border: 0;
+        border-top: 1px solid #000;
+        margin: 4px 0;
+      }
+
+      .bill-copy {
+        page-break-after: always;
+        padding-bottom: 12mm;
+      }
+
+      .bill-copy:last-child {
+        page-break-after: avoid;
+      }
     }
 
     /* ============================================================
@@ -405,6 +655,7 @@
       gap: 16px;
       margin-bottom: 16px;
     }
+
     .chart-card {
       background: var(--cd);
       border: 1px solid var(--bd);
@@ -413,8 +664,9 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
+
     .chart-header {
       display: flex;
       justify-content: space-between;
@@ -422,6 +674,7 @@
       border-bottom: 1px solid var(--bd);
       padding-bottom: 8px;
     }
+
     .chart-title {
       font-size: 13px;
       font-weight: 700;
@@ -430,10 +683,12 @@
       align-items: center;
       gap: 6px;
     }
+
     .chart-sub {
       font-size: 11px;
       color: var(--mu);
     }
+
     .dash-tabs {
       display: flex;
       gap: 8px;
@@ -442,6 +697,7 @@
       padding-bottom: 10px;
       flex-wrap: wrap;
     }
+
     .dash-tab-btn {
       background: var(--bg);
       color: var(--mu);
@@ -456,29 +712,34 @@
       gap: 6px;
       transition: all 0.15s ease;
     }
+
     .dash-tab-btn.active {
       background: var(--ac);
       color: #fff;
       border-color: var(--ac);
       box-shadow: 0 2px 4px rgba(15, 118, 110, 0.2);
     }
+
     .dash-tab-btn:hover:not(.active) {
       background: var(--cd);
       color: var(--tx);
       border-color: var(--mu);
     }
+
     .hbar-item {
       display: flex;
       flex-direction: column;
       gap: 4px;
       margin-bottom: 10px;
     }
+
     .hbar-label {
       display: flex;
       justify-content: space-between;
       font-size: 12px;
       font-weight: 500;
     }
+
     .hbar-track {
       height: 10px;
       background: var(--bg);
@@ -486,11 +747,13 @@
       overflow: hidden;
       position: relative;
     }
+
     .hbar-fill {
       height: 100%;
       border-radius: 6px;
       transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     }
+
     .donut-wrap {
       display: flex;
       align-items: center;
@@ -499,12 +762,14 @@
       flex-wrap: wrap;
       padding: 6px 0;
     }
+
     .donut-legend {
       display: flex;
       flex-direction: column;
       gap: 8px;
       flex: 1 1 180px;
     }
+
     .legend-row {
       display: flex;
       align-items: center;
@@ -514,41 +779,49 @@
       border-radius: 4px;
       transition: background 0.1s ease;
     }
+
     .legend-row:hover {
       background: var(--bg);
     }
+
     .legend-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
     }
+
     .legend-dot {
       width: 10px;
       height: 10px;
       border-radius: 50%;
       display: inline-block;
     }
+
     .stacked-bar-track {
       display: flex;
       height: 18px;
       border-radius: 9px;
       overflow: hidden;
       background: var(--bg);
-      box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
     }
+
     .stacked-seg {
       height: 100%;
       transition: width 0.4s ease;
     }
+
     .sales-svg-container {
       width: 100%;
       overflow-x: auto;
       padding-top: 6px;
     }
+
     .chart-tooltip {
       font-family: var(--mono);
       font-size: 11px;
     }
+
     .stat-badge {
       font-family: var(--mono);
       font-size: 11px;
@@ -559,11 +832,16 @@
     }
   </style>
 </head>
+
 <body>
   <div id="offline-banner">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 2 20 20M8.5 8.5A5.5 5.5 0 0 1 12 7c3.3 0 6 2.7 6 6 0 1.2-.3 2.3-.9 3.2M5.1 14.9C5 14.3 5 13.7 5 13c0-3.9 3.1-7 7-7 1 0 2 .2 2.9.7M12 17a3 3 0 0 1-3-3"/></svg>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path
+        d="m2 2 20 20M8.5 8.5A5.5 5.5 0 0 1 12 7c3.3 0 6 2.7 6 6 0 1.2-.3 2.3-.9 3.2M5.1 14.9C5 14.3 5 13.7 5 13c0-3.9 3.1-7 7-7 1 0 2 .2 2.9.7M12 17a3 3 0 0 1-3-3" />
+    </svg>
     <span>Offline Mode: Backend server sleeping or unreachable. Operating on cached local data.</span>
-    <button onclick="initialLoad()" style="padding: 2px 8px; font-size: 11px; margin-left: 10px; background: rgba(0,0,0,0.3);">Retry Connect</button>
+    <button onclick="initialLoad()"
+      style="padding: 2px 8px; font-size: 11px; margin-left: 10px; background: rgba(0,0,0,0.3);">Retry Connect</button>
   </div>
   <div id="app"></div>
   <div id="bill"></div>
@@ -575,7 +853,7 @@
     const API_URL = ''; // Relative path for universal Chrome, Edge & Brave compatibility
     const CACHE_KEY = 'pharm_offline_cache';
     const TOKEN_KEY = 'pharm_token';
-    const USER_KEY  = 'pharm_active_user';
+    const USER_KEY = 'pharm_active_user';
 
     // SVG Vector Icon Templates
     const ICONS = {
@@ -841,7 +1119,7 @@
             payment_qr_label: st.config.payment_qr_label || 'Scan to Pay'
           };
           S.seq = st.config.seq || 1;
-          S.rs  = st.config.rs_counter || 1;
+          S.rs = st.config.rs_counter || 1;
         }
         if (Array.isArray(st.medicines) && st.medicines.length) {
           S.med = st.medicines.map(m => ({ id: m.id, n: m.name, u: m.unit, hs: m.hs_code, mrp: parseFloat(m.mrp) || 0, vat: parseFloat(m.vat) || 0 }));
@@ -857,10 +1135,10 @@
           if (Array.isArray(salesData) && salesData.length) {
             S.sales = salesData.map(s => ({ no: s.bill_no, t: s.transaction_time || new Date(s.created_at).getTime(), u: s.username, cu: s.customer_name, pm: s.payment_mode, tot: parseFloat(s.grand_total) || 0, sub: parseFloat(s.subtotal) || 0, disc: parseFloat(s.discount) || 0, vat: parseFloat(s.tax) || 0, L: s.items || [] }));
           }
-        } catch(e) {}
+        } catch (e) { }
         saveLocalCache();
         if (U) render();
-      } catch(err) {
+      } catch (err) {
         console.warn('refreshState notice:', err.message);
         loadLocalCache();
         if (U) render();
@@ -996,12 +1274,12 @@
       // Load fresh data in background after login
       apiCall('/api/pharmacy/state').then(st => {
         if (st.config) { S.cfg = { ...DC, ...st.config }; S.seq = st.config.seq || 1; S.rs = st.config.rs_counter || 1; }
-        if (Array.isArray(st.medicines) && st.medicines.length) S.med = st.medicines.map(m => ({ id: m.id, n: m.name, u: m.unit, hs: m.hs_code, mrp: parseFloat(m.mrp)||0, vat: parseFloat(m.vat)||0 }));
-        if (Array.isArray(st.stock) && st.stock.length) S.stock = st.stock.map(s => ({ id: s.id, mid: s.medicine_id, n: s.medicine_name, hs: s.hs_code, u: s.unit, b: s.batch, x: s.expiry, q: s.quantity, cost: parseFloat(s.cost_price)||0, mrp: parseFloat(s.mrp)||0, vat: parseFloat(s.vat)||0 }));
-        if (Array.isArray(st.users) && st.users.length) st.users.forEach(u => { S.users[u.username] = { n: u.full_name, email: u.email||'', role: u.role, has_password: u.has_password }; });
+        if (Array.isArray(st.medicines) && st.medicines.length) S.med = st.medicines.map(m => ({ id: m.id, n: m.name, u: m.unit, hs: m.hs_code, mrp: parseFloat(m.mrp) || 0, vat: parseFloat(m.vat) || 0 }));
+        if (Array.isArray(st.stock) && st.stock.length) S.stock = st.stock.map(s => ({ id: s.id, mid: s.medicine_id, n: s.medicine_name, hs: s.hs_code, u: s.unit, b: s.batch, x: s.expiry, q: s.quantity, cost: parseFloat(s.cost_price) || 0, mrp: parseFloat(s.mrp) || 0, vat: parseFloat(s.vat) || 0 }));
+        if (Array.isArray(st.users) && st.users.length) st.users.forEach(u => { S.users[u.username] = { n: u.full_name, email: u.email || '', role: u.role, has_password: u.has_password }; });
         return apiCall('/api/sales');
       }).then(salesData => {
-        if (Array.isArray(salesData) && salesData.length) S.sales = salesData.map(s => ({ no: s.bill_no, t: s.transaction_time || new Date(s.created_at).getTime(), u: s.username, cu: s.customer_name, pm: s.payment_mode, tot: parseFloat(s.grand_total)||0, sub: parseFloat(s.subtotal)||0, disc: parseFloat(s.discount)||0, vat: parseFloat(s.tax)||0, L: s.items||[] }));
+        if (Array.isArray(salesData) && salesData.length) S.sales = salesData.map(s => ({ no: s.bill_no, t: s.transaction_time || new Date(s.created_at).getTime(), u: s.username, cu: s.customer_name, pm: s.payment_mode, tot: parseFloat(s.grand_total) || 0, sub: parseFloat(s.subtotal) || 0, disc: parseFloat(s.discount) || 0, vat: parseFloat(s.tax) || 0, L: s.items || [] }));
         saveLocalCache();
         if (U) render();
       }).catch(err => { console.warn('Post-login sync:', err.message); loadLocalCache(); if (U) render(); });
@@ -1056,7 +1334,7 @@
           if (S.users[username]) S.users[username].email = emailVal;
           toast('✅ Email registered! You can now reset your password by email.');
           finish();
-        } catch(e) {
+        } catch (e) {
           saveBtn.disabled = false; saveBtn.textContent = 'Save & Continue to Dashboard →';
           err.textContent = e.message || 'Failed to save email.';
         }
@@ -1458,7 +1736,7 @@
         styleTag.id = 'dynamic-print-css';
         document.head.appendChild(styleTag);
       }
-      
+
       const { size, orientation, zoom } = printConfig;
       let pageRule = `${size} ${orientation}`;
       if (size === '80mm') {
@@ -1486,7 +1764,7 @@
       const singleHtml = LB.h;
       let fullHtml = '';
       for (let i = 0; i < copiesCount; i++) {
-        const copyBadge = copiesCount > 1 
+        const copyBadge = copiesCount > 1
           ? `<div style="text-align:right;font-size:10px;font-weight:bold;margin-bottom:2px;">[ COPY ${i + 1} OF ${copiesCount} ]</div>`
           : '';
         fullHtml += `<div class="bill-copy">${copyBadge}${singleHtml}</div>`;
@@ -1740,9 +2018,9 @@
             <th>Medicine</th><th>Unit</th><th>Batch</th><th>Expiry</th><th class="n">Quantity</th><th class="n">Cost (Rs.)</th><th class="n">MRP (Rs.)</th>
           </tr>
           ${rows.map(s => {
-            const t = s.x ? new Date(+s.x.slice(0, 4), +s.x.slice(5, 7), 0, 23, 59).getTime() : 0;
-            const k = t && t < now ? 'exp' : t && t - now < lim ? 'nex' : '';
-            return `
+        const t = s.x ? new Date(+s.x.slice(0, 4), +s.x.slice(5, 7), 0, 23, 59).getTime() : 0;
+        const k = t && t < now ? 'exp' : t && t - now < lim ? 'nex' : '';
+        return `
               <tr class="${k}">
                 <td><b>${e(s.n)}</b></td>
                 <td>${e(s.u)}</td>
@@ -1752,7 +2030,7 @@
                 <td class="n">${s.cost == null ? '-' : f(s.cost)}</td>
                 <td class="n">${f(s.mrp)}</td>
               </tr>`;
-          }).join('')}
+      }).join('')}
         </table>`;
     }
 
@@ -1805,7 +2083,7 @@
         let invData = null;
         try {
           invData = await apiCall('/api/pharmacy/inventory-dashboard');
-        } catch (e) {}
+        } catch (e) { }
 
         const stock = (invData && Array.isArray(invData.stock) && invData.stock.length) ? invData.stock : S.stock;
         window._invStock = stock;
@@ -2031,9 +2309,9 @@
               </div>
               <div>
                 ${topStockVal.length === 0 ? `<p class="mu" style="font-size:12px;padding:24px 0;text-align:center;">No stock items recorded yet. Use 'Stock Entry' to add inventory.</p>` :
-                  topStockVal.map(item => {
-                    const pct = Math.min(100, Math.round((item.val / maxStockVal) * 100));
-                    return `
+            topStockVal.map(item => {
+              const pct = Math.min(100, Math.round((item.val / maxStockVal) * 100));
+              return `
                       <div class="hbar-item">
                         <div class="hbar-label">
                           <span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px;" title="${e(item.name)}">
@@ -2045,7 +2323,7 @@
                           <div class="hbar-fill" style="width:${pct}%;background:linear-gradient(90deg, var(--ac), #14b8a6);"></div>
                         </div>
                       </div>`;
-                  }).join('')}
+            }).join('')}
               </div>
             </div>
           </div>` : ''}
@@ -2074,24 +2352,24 @@
                     <line x1="30" y1="20" x2="490" y2="20" stroke="var(--bd)" stroke-dasharray="3,3" stroke-width="1"></line>
                     
                     ${dateKeys.map((k, i) => {
-                      const count = dateKeys.length;
-                      const step = 440 / Math.max(1, count);
-                      const x = 40 + i * step;
-                      const val = dailySalesMap[k] || 0;
-                      const barH = Math.max(4, Math.round((val / maxDailySale) * 105));
-                      const y = 130 - barH;
-                      const label = k.slice(5); // MM-DD
-                      return `
+              const count = dateKeys.length;
+              const step = 440 / Math.max(1, count);
+              const x = 40 + i * step;
+              const val = dailySalesMap[k] || 0;
+              const barH = Math.max(4, Math.round((val / maxDailySale) * 105));
+              const y = 130 - barH;
+              const label = k.slice(5); // MM-DD
+              return `
                         <rect x="${x - 12}" y="${y}" width="24" height="${barH}" rx="4" fill="var(--ac)" opacity="0.85">
                           <title>${k}: Rs. ${f(val)}</title>
                         </rect>
                         <text x="${x}" y="${Math.max(16, y - 5)}" font-size="9" fill="var(--tx)" text-anchor="middle" font-weight="600" class="mono">
-                          ${val > 999 ? (val/1000).toFixed(1) + 'k' : Math.round(val)}
+                          ${val > 999 ? (val / 1000).toFixed(1) + 'k' : Math.round(val)}
                         </text>
                         <text x="${x}" y="146" font-size="9" fill="var(--mu)" text-anchor="middle" class="mono">
                           ${label}
                         </text>`;
-                    }).join('')}
+            }).join('')}
                   </svg>
                 </div>`}
             </div>
@@ -2163,8 +2441,8 @@
               ${topSellingList.length === 0 ? `<p class="mu" style="font-size:12px;padding:16px;text-align:center;">No dispensed medicine history logged yet.</p>` : `
                 <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;">
                   ${topSellingList.map(item => {
-                    const pct = Math.min(100, Math.round((item.rev / maxSellingRev) * 100));
-                    return `
+              const pct = Math.min(100, Math.round((item.rev / maxSellingRev) * 100));
+              return `
                       <div class="hbar-item" style="background:var(--bg);padding:10px;border-radius:6px;">
                         <div class="hbar-label">
                           <span style="font-weight:600;" title="${e(item.name)}">${e(item.name)}</span>
@@ -2178,7 +2456,7 @@
                           <span class="mono" style="font-weight:600;">${item.qty} units</span>
                         </div>
                       </div>`;
-                  }).join('')}
+            }).join('')}
                 </div>`}
             </div>
           </div>` : ''}
@@ -2250,18 +2528,18 @@
             <th>Medicine Name</th><th>Batch</th><th>Expiry</th><th class="n">Stock Qty</th><th class="n">Unit</th><th class="n">Cost Price</th><th class="n">MRP Selling</th><th class="n">Asset Valuation</th>
           </tr>
           ${filtered.map(s => {
-            const name = s.medicine_name || s.n;
-            const batch = s.batch || s.b || '-';
-            const unit = s.unit || s.u || 'PCS';
-            const x = s.expiry || s.x || '';
-            const qty = parseInt(s.quantity ?? s.q, 10) || 0;
-            const cost = parseFloat(s.cost_price ?? s.cost) || 0;
-            const mrp = parseFloat(s.mrp) || 0;
-            const totalVal = qty * cost;
-            const t = x ? new Date(+x.slice(0, 4), +x.slice(5, 7), 0, 23, 59).getTime() : 0;
-            const k = t && t < now ? 'exp' : t && t - now < lim ? 'nex' : (qty <= (S.cfg.low || 10) ? 'nex' : '');
+        const name = s.medicine_name || s.n;
+        const batch = s.batch || s.b || '-';
+        const unit = s.unit || s.u || 'PCS';
+        const x = s.expiry || s.x || '';
+        const qty = parseInt(s.quantity ?? s.q, 10) || 0;
+        const cost = parseFloat(s.cost_price ?? s.cost) || 0;
+        const mrp = parseFloat(s.mrp) || 0;
+        const totalVal = qty * cost;
+        const t = x ? new Date(+x.slice(0, 4), +x.slice(5, 7), 0, 23, 59).getTime() : 0;
+        const k = t && t < now ? 'exp' : t && t - now < lim ? 'nex' : (qty <= (S.cfg.low || 10) ? 'nex' : '');
 
-            return `
+        return `
               <tr class="${k}">
                 <td><b>${e(name)}</b></td>
                 <td class="mono">${e(batch)}</td>
@@ -2272,7 +2550,7 @@
                 <td class="n">Rs. ${f(mrp)}</td>
                 <td class="n"><b>Rs. ${f(totalVal)}</b></td>
               </tr>`;
-          }).join('')}
+      }).join('')}
           ${filtered.length == 0 ? '<tr><td colspan="8" class="mu" style="text-align:center;padding:20px;">No matching stock records found.</td></tr>' : ''}
         </table>`;
     }
@@ -2876,10 +3154,10 @@
                 <th>Actions</th>
               </tr>
               ${Object.entries(S.users).map(([u, d]) => {
-                const isRoot = u === 'admin';
-                const dis = isRoot ? 'disabled' : '';
-                const perm = d.permissions || {};
-                return `<tr>
+        const isRoot = u === 'admin';
+        const dis = isRoot ? 'disabled' : '';
+        const perm = d.permissions || {};
+        return `<tr>
                   <td class="mono"><b>${e(u)}</b>${isRoot ? ' 👑' : ''}</td>
                   <td>${e(d.n)}</td>
                   <td style="font-size:11px;">${e(d.email || '—')}</td>
@@ -2900,7 +3178,7 @@
                     ` : '<span class="mu" style="font-size:11px;">Root Owner</span>'}
                   </td>
                 </tr>`;
-              }).join('')}
+      }).join('')}
             </table>
           </div>
         </div>
@@ -2935,19 +3213,19 @@
 
     async function saveConfig() {
       const updates = {
-        name:             document.getElementById('cfg_name')?.value.trim(),
-        addr:             document.getElementById('cfg_addr')?.value.trim(),
-        pan:              document.getElementById('cfg_pan')?.value.trim(),
-        prefix:           (document.getElementById('cfg_prefix')?.value.trim() || '').toUpperCase(),
-        vat:              parseFloat(document.getElementById('cfg_vat')?.value) || 0,
-        low_stock_level:  parseInt(document.getElementById('cfg_low')?.value, 10) || 10,
-        expiry_days:      parseInt(document.getElementById('cfg_expiry')?.value, 10) || 90,
-        footer1:          document.getElementById('cfg_f1')?.value.trim(),
-        footer2:          document.getElementById('cfg_f2')?.value.trim(),
-        returns_enabled:  document.getElementById('cfg_returns')?.checked,
+        name: document.getElementById('cfg_name')?.value.trim(),
+        addr: document.getElementById('cfg_addr')?.value.trim(),
+        pan: document.getElementById('cfg_pan')?.value.trim(),
+        prefix: (document.getElementById('cfg_prefix')?.value.trim() || '').toUpperCase(),
+        vat: parseFloat(document.getElementById('cfg_vat')?.value) || 0,
+        low_stock_level: parseInt(document.getElementById('cfg_low')?.value, 10) || 10,
+        expiry_days: parseInt(document.getElementById('cfg_expiry')?.value, 10) || 90,
+        footer1: document.getElementById('cfg_f1')?.value.trim(),
+        footer2: document.getElementById('cfg_f2')?.value.trim(),
+        returns_enabled: document.getElementById('cfg_returns')?.checked,
         discount_enabled: document.getElementById('cfg_discount')?.checked,
-        adj_password:     document.getElementById('cfg_adjpw')?.checked,
-        auto_print:       document.getElementById('cfg_autoprint')?.checked
+        adj_password: document.getElementById('cfg_adjpw')?.checked,
+        auto_print: document.getElementById('cfg_autoprint')?.checked
       };
       try {
         const res = await apiCall('/api/pharmacy/config', {
@@ -2960,14 +3238,14 @@
         if (ok) { ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 3000); }
         toast('✅ System configuration & VAT saved!');
         V.cust();
-      } catch(err) {
+      } catch (err) {
         const el = document.getElementById('cfg_err');
         if (el) el.textContent = err.message || 'Save failed.';
       }
     }
 
     async function saveQR() {
-      const url   = document.getElementById('cfg_qr_url')?.value.trim() || '';
+      const url = document.getElementById('cfg_qr_url')?.value.trim() || '';
       const label = document.getElementById('cfg_qr_label')?.value.trim() || 'Scan to Pay';
       try {
         await apiCall('/api/pharmacy/config', {
@@ -2981,7 +3259,7 @@
         if (ok) { ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 3000); }
         toast('✅ Online payment QR code saved!');
         V.cust();
-      } catch(err) {
+      } catch (err) {
         toast(err.message || 'QR code save failed.');
       }
     }
@@ -2990,8 +3268,8 @@
       const roleEl = document.getElementById('role_' + username);
       const role = roleEl?.value || 'staff';
       const permissions = {
-        pos:       document.getElementById('perm_pos_' + username)?.checked !== false,
-        stock:     document.getElementById('perm_stock_' + username)?.checked !== false,
+        pos: document.getElementById('perm_pos_' + username)?.checked !== false,
+        stock: document.getElementById('perm_stock_' + username)?.checked !== false,
         dashboard: document.getElementById('perm_dash_' + username)?.checked !== false,
         purchases: document.getElementById('perm_purch_' + username)?.checked !== false
       };
@@ -3007,7 +3285,7 @@
         saveLocalCache();
         toast('✅ Role & permissions updated for ' + username);
         V.cust();
-      } catch(err) {
+      } catch (err) {
         toast(err.message || 'Role update failed.');
       }
     }
@@ -3084,4 +3362,5 @@
     initialLoad();
   </script>
 </body>
+
 </html>

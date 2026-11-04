@@ -304,6 +304,10 @@ const saveLocalDb = () => {
 
 /** GET /api/health — System health check */
 app.get('/api/health', (req, res) => {
+  // If opened directly in a browser address bar, redirect to the application UI
+  if (req.headers.accept && req.headers.accept.includes('text/html') && !req.xhr) {
+    return res.redirect('/');
+  }
   res.json({ status: 'ok', time: new Date().toISOString(), uptime: Math.floor(process.uptime()) });
 });
 
