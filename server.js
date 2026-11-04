@@ -43,6 +43,9 @@ const JWT_EXPIRES   = process.env.JWT_EXPIRES_IN || '8h';
 // ── Express App ──────────────────────────────────────────────
 const app = express();
 
+// Trust reverse proxy (Render, Cloudflare, etc.) for rate-limiting and HTTPS
+app.set('trust proxy', 1);
+
 // ── Security Headers ─────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
@@ -62,13 +65,21 @@ app.use(helmet({
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ── CORS ─────────────────────────────────────────────────────
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
-  .split(',').map(o => o.trim());
+const corsEnv = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.trim() : '*';
+const allowedOrigins = corsEnv === '*'
+  ? ['*']
+  : corsEnv.split(',').map(o => o.trim());
 
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow same-origin requests (no origin header) and listed origins
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // Allow same-origin (no origin header), wildcard '*', or listed origins
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return cb(null, true);
+    }
+    // Also allow any render.com subdomains automatically
+    if (typeof origin === 'string' && (origin.endsWith('.onrender.com') || origin.includes('localhost'))) {
+      return cb(null, true);
+    }
     cb(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
