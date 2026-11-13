@@ -383,10 +383,10 @@ try {
   console.warn('Could not read local DB, using defaults:', e.message);
 }
 
-// Purge legacy demo users on startup
+// Purge legacy hardcoded demo users (rd, rs) on startup if unauthenticated
 if (localDb.users) {
-  for (const legacy of ['admin', 'rd', 'rs']) {
-    if (localDb.users[legacy] && !localDb.users[legacy].google_id) {
+  for (const legacy of ['rd', 'rs']) {
+    if (localDb.users[legacy] && !localDb.users[legacy].google_id && !localDb.users[legacy].password_hash) {
       delete localDb.users[legacy];
     }
   }
