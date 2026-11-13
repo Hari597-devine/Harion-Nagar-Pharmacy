@@ -960,7 +960,9 @@
           client_id: GOOGLE_CLIENT_ID,
           callback: handleGoogleCredentialResponse,
           auto_select: false,
-          cancel_on_tap_outside: true
+          cancel_on_tap_outside: true,
+          ux_mode: 'popup',
+          itp_support: true
         });
         googleAuthInitialized = true;
       } catch (e) {

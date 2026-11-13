@@ -77,6 +77,7 @@ app.use(helmet({
       upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
     }
   },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   frameguard: { action: 'deny' },
   xContentTypeOptions: true,
   dnsPrefetchControl: { allow: false },
