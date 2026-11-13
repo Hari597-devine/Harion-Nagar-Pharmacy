@@ -13,6 +13,9 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
     rel="stylesheet">
 
+  <!-- Google Identity Services for Google Sign-In -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <style>
     :root {
       --bg: #f8fafc;
@@ -877,7 +880,8 @@
       eye: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
       eyeOff: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`,
       lock: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
-      calendar: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`
+      google: `<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>`,
+    calendar: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`
     };
 
     // Helper functions
@@ -908,10 +912,7 @@
     let S = {
       v: 2,
       cfg: { ...DC },
-      users: {
-        rd: { n: 'Ram Dular Mahato', email: '', role: 'admin', has_password: false },
-        rs: { n: 'Ramesh Singh', email: '', role: 'staff', has_password: false }
-      },
+      users: {},
       med: [],
       stock: [],
       purch: [],
@@ -934,6 +935,154 @@
     let FS = '';
     let D1 = td(), D2 = td(), IU = 'all';
     let isOffline = false;
+
+    // ── Google Sign-In Configuration ──
+    let GOOGLE_CLIENT_ID = '';
+    let googleAuthInitialized = false;
+
+    async function fetchGoogleConfig() {
+      try {
+        const cfg = await fetch('/api/auth/config').then(r => r.json());
+        if (cfg.googleClientId) {
+          GOOGLE_CLIENT_ID = cfg.googleClientId;
+          return true;
+        }
+      } catch (e) {
+        console.warn('Could not fetch auth config:', e.message);
+      }
+      return false;
+    }
+
+    function initGoogleSignIn() {
+      if (googleAuthInitialized || !GOOGLE_CLIENT_ID || typeof google === 'undefined') return;
+      try {
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true
+        });
+        googleAuthInitialized = true;
+        console.log('[Auth] Google Sign-In initialized');
+      } catch (e) {
+        console.warn('Google Sign-In init failed:', e.message);
+      }
+    }
+
+    async function handleGoogleCredentialResponse(response) {
+      if (!response || !response.credential) {
+        toast('Google sign-in failed. Please try again.');
+        return;
+      }
+
+      const btn = document.getElementById('btn_google');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:8px;">Signing in with Google...</span>'; }
+
+      try {
+        const res = await apiCall('/api/auth/google', {
+          method: 'POST',
+          body: JSON.stringify({
+            credential: response.credential,
+            clientId: GOOGLE_CLIENT_ID
+          })
+        });
+
+        setToken(res.token);
+        sessionStorage.setItem(USER_KEY, res.user.username);
+        U = res.user.username;
+        S.users[U] = {
+          n: res.user.fullName || U,
+          email: res.user.email || '',
+          role: res.user.role || 'staff',
+          has_password: res.user.has_password || false,
+          picture: res.user.picture || ''
+        };
+
+        if (res.isNewUser) {
+          toast('Welcome! Your account has been created as ' + (res.user.role === 'admin' ? 'Administrator' : 'Staff') + '.');
+        } else {
+          toast('Welcome back, ' + (res.user.fullName || U) + '!');
+        }
+
+        // If user has no password set, prompt them to create one
+        if (!res.user.has_password) {
+          showSetPasswordModal(U, res.user.email, () => fetchAndRender());
+        } else {
+          fetchAndRender();
+        }
+      } catch (err) {
+        if (btn) { btn.disabled = false; btn.innerHTML = ICONS.google + ' Sign in with Google'; }
+        toast(err.message || 'Google authentication failed.');
+        login(null, 'Google sign-in failed. Please try again.');
+      }
+    }
+
+    function showSetPasswordModal(username, email, onDone) {
+      const modal = document.createElement('div');
+      modal.className = 'ov';
+      modal.innerHTML = `
+        <div class="card" style="max-width:410px;padding:32px 28px;border-radius:18px;text-align:center;">
+          <div style="display:inline-flex;padding:14px;background:var(--ac-light);color:var(--ac);border-radius:16px;margin-bottom:14px;">
+            ${ICONS.lock}
+          </div>
+          <h3 style="font-size:18px;font-weight:700;margin-bottom:6px;justify-content:center;">Set Your Login Password</h3>
+          <p class="mu" style="font-size:13px;margin-bottom:20px;line-height:1.6;">
+            Create a password so you can also sign in with your credentials (username + password) in addition to Google.
+          </p>
+          <label class="f" style="margin-bottom:14px;text-align:left;">
+            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">New Password (min 6 chars)</span>
+            <div style="position:relative;margin-top:5px;">
+              <input id="set_pwd_inp" type="password" placeholder="Create a secure password" autocomplete="new-password" style="width:100%;padding-right:44px;">
+              <button type="button" onclick="togglePwdVis('set_pwd_inp','set_pwd_eye')"
+                style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:4px;display:flex;align-items:center;"
+                title="Toggle visibility"><span id="set_pwd_eye">${ICONS.eye}</span></button>
+            </div>
+          </label>
+          <label class="f" style="margin-bottom:14px;text-align:left;">
+            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">Confirm Password</span>
+            <input id="set_pwd_confirm" type="password" placeholder="Re-enter password" autocomplete="new-password" style="margin-top:5px;">
+          </label>
+          <p class="err" id="set_pwd_err" style="margin-bottom:12px;min-height:18px;"></p>
+          <button id="set_pwd_btn" style="width:100%;height:44px;font-size:14px;font-weight:700;border-radius:12px;background:var(--ac);color:#fff;cursor:pointer;">
+            Set Password & Continue
+          </button>
+          <p style="margin-top:14px;font-size:11px;color:var(--mu);">
+            <a href="#" id="set_pwd_skip" style="color:var(--mu);text-decoration:underline;">Skip — I'll only use Google Sign-In</a>
+          </p>
+        </div>`;
+      document.body.appendChild(modal);
+
+      const pwdInp = modal.querySelector('#set_pwd_inp');
+      const confirmInp = modal.querySelector('#set_pwd_confirm');
+      const errEl = modal.querySelector('#set_pwd_err');
+      const saveBtn = modal.querySelector('#set_pwd_btn');
+      pwdInp.focus();
+
+      const finish = () => { modal.remove(); onDone(); };
+      modal.querySelector('#set_pwd_skip').onclick = ev => { ev.preventDefault(); finish(); };
+
+      saveBtn.onclick = async () => {
+        const p1 = pwdInp.value;
+        const p2 = confirmInp.value;
+        if (!p1 || p1.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+        if (p1 !== p2) { errEl.textContent = 'Passwords do not match.'; return; }
+
+        saveBtn.disabled = true; saveBtn.textContent = 'Setting password...';
+        try {
+          await apiCall('/api/auth/set-password', {
+            method: 'POST',
+            body: JSON.stringify({ username, email, password: p1 })
+          });
+          toast('Password set successfully! You can now sign in with credentials too.');
+          if (S.users[username]) S.users[username].has_password = true;
+          finish();
+        } catch (err) {
+          saveBtn.disabled = false; saveBtn.textContent = 'Set Password & Continue';
+          errEl.textContent = err.message || 'Failed to set password.';
+        }
+      };
+    }
+
 
     // Token Management
     const getToken = () => sessionStorage.getItem(TOKEN_KEY);
@@ -1154,6 +1303,20 @@
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
 
+      // Fetch Google Sign-In config (non-blocking)
+      fetchGoogleConfig().then(hasGoogle => {
+        if (hasGoogle) {
+          // Wait for GIS library to load then init
+          const waitForGIS = setInterval(() => {
+            if (typeof google !== 'undefined' && google.accounts) {
+              clearInterval(waitForGIS);
+              initGoogleSignIn();
+            }
+          }, 200);
+          setTimeout(() => clearInterval(waitForGIS), 8000); // Give up after 8s
+        }
+      });
+
       const token = getToken();
       const savedUser = sessionStorage.getItem(USER_KEY);
       if (token && savedUser) {
@@ -1163,7 +1326,6 @@
       } else {
         clearToken();
         U = null;
-        await fetchAuthUsers();
         login();
       }
     }
@@ -1173,20 +1335,37 @@
     // ============================================================
     function login(k, m = '', sMsg = '') {
       const activeUser = k || '';
+      const hasGoogle = !!GOOGLE_CLIENT_ID;
 
       $('#app').innerHTML = `
-        <div class="card" style="max-width:390px;margin:10vh auto;padding:32px 28px;box-shadow:0 12px 35px -8px rgba(15, 23, 42, 0.12);border-radius:18px;border:1px solid var(--bd);">
-          <div style="text-align:center;margin-bottom:24px;">
-            <div style="display:inline-flex;padding:14px;background:var(--ac-light);color:var(--ac);border-radius:16px;margin-bottom:12px;">
-              ${ICONS.box}
+        <div class="card" style="max-width:420px;margin:6vh auto;padding:36px 30px;box-shadow:0 16px 48px -12px rgba(15, 23, 42, 0.15);border-radius:20px;border:1px solid var(--bd);">
+          <div style="text-align:center;margin-bottom:28px;">
+            <div style="display:inline-flex;padding:16px;background:linear-gradient(135deg, var(--ac-light), #d1fae5);color:var(--ac);border-radius:20px;margin-bottom:14px;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M2 12h20"/></svg>
             </div>
-            <h2 style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--tx);">${e(S.cfg.name)}</h2>
-            <p class="mu" style="font-size:12px;margin-top:4px;">Harion-4, Sasapur, Sarlahi &bull; Hospital &amp; Pharmacy</p>
+            <h2 style="font-size:20px;font-weight:800;letter-spacing:-0.025em;color:var(--tx);margin-bottom:4px;">${e(S.cfg.name)}</h2>
+            <p class="mu" style="font-size:12px;margin-top:2px;">Harion-4, Sasapur, Sarlahi &bull; Inventory Management</p>
           </div>
+
+          ${hasGoogle ? `
+            <button id="btn_google" onclick="triggerGoogleSignIn()"
+              style="width:100%;height:50px;font-size:15px;font-weight:600;border-radius:14px;background:#fff;color:#3c4043;cursor:pointer;border:1.5px solid #dadce0;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.08);"
+              onmouseenter="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.12)';this.style.borderColor='#bdc1c6'"
+              onmouseleave="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)';this.style.borderColor='#dadce0'">
+              ${ICONS.google}
+              Sign in with Google
+            </button>
+
+            <div style="display:flex;align-items:center;gap:12px;margin:22px 0;">
+              <div style="flex:1;height:1px;background:var(--bd);"></div>
+              <span style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.08em;">or sign in with credentials</span>
+              <div style="flex:1;height:1px;background:var(--bd);"></div>
+            </div>
+          ` : ''}
 
           <label class="f" style="margin-bottom:14px;">
             <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">Username or Email</span>
-            <input id="login_user" type="text" value="${e(activeUser)}" placeholder="Enter your username" autocomplete="username"
+            <input id="login_user" type="text" value="${e(activeUser)}" placeholder="Enter your username or email" autocomplete="username"
               onkeydown="if(event.key==='Enter')document.getElementById('login_pwd')?.focus()"
               style="margin-top:5px;">
           </label>
@@ -1212,14 +1391,21 @@
           ${sMsg ? `<p style="color:#059669;background:#ecfdf5;padding:10px;border-radius:8px;font-size:12px;margin-bottom:12px;border:1px solid #a7f3d0;">${sMsg}</p>` : ''}
           <p class="err" id="le" style="margin-bottom:12px;min-height:18px;">${e(m)}</p>
 
-          <button id="btn_signin" style="width:100%;height:46px;font-size:15px;font-weight:700;border-radius:12px;background:var(--ac);color:#fff;cursor:pointer;letter-spacing:0.01em;" onclick="doSignIn()">
+          <button id="btn_signin" style="width:100%;height:48px;font-size:15px;font-weight:700;border-radius:14px;background:var(--ac);color:#fff;cursor:pointer;letter-spacing:0.01em;transition:background 0.2s;" onclick="doSignIn()"
+            onmouseenter="this.style.background='var(--ac-hover)'"
+            onmouseleave="this.style.background='var(--ac)'">
             Sign In &rarr;
           </button>
 
-          <p style="text-align:center;font-size:11px;color:var(--mu);margin-top:18px;line-height:1.5;">
-            🔒 Secured with cryptographic bcrypt &bull; Session ends on tab close
+          <p style="text-align:center;font-size:11px;color:var(--mu);margin-top:20px;line-height:1.5;">
+            ${ICONS.lock} Secured with bcrypt + SHA-256 &bull; Session ends on tab close
           </p>
         </div>`;
+
+      // Render the Google one-tap button in the container if available
+      if (hasGoogle && typeof google !== 'undefined' && google.accounts) {
+        try { initGoogleSignIn(); } catch(e) {}
+      }
 
       setTimeout(() => {
         const userField = document.getElementById('login_user');
@@ -1227,6 +1413,40 @@
         if (userField && !userField.value) userField.focus();
         else if (pwdField) pwdField.focus();
       }, 50);
+    }
+
+    function triggerGoogleSignIn() {
+      if (typeof google === 'undefined' || !google.accounts) {
+        toast('Google Sign-In is loading. Please wait a moment and try again.');
+        return;
+      }
+      try {
+        initGoogleSignIn();
+        google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            // Fallback: render the standard Google button
+            const container = document.createElement('div');
+            container.id = 'g_btn_container';
+            container.style.cssText = 'display:flex;justify-content:center;margin-top:12px;';
+            const btn = document.getElementById('btn_google');
+            if (btn && btn.parentNode) {
+              btn.parentNode.insertBefore(container, btn.nextSibling);
+              btn.style.display = 'none';
+              google.accounts.id.renderButton(container, {
+                type: 'standard',
+                shape: 'pill',
+                theme: 'outline',
+                size: 'large',
+                text: 'signin_with',
+                width: 360
+              });
+            }
+          }
+        });
+      } catch (err) {
+        toast('Google Sign-In is not available. Please use credentials.');
+        console.warn('Google prompt error:', err);
+      }
     }
 
     function togglePwdVis(inputId, iconId) {
@@ -1542,7 +1762,7 @@
 
       isAuthorized(user) {
         if (!user) return false;
-        const isRootOrAdmin = (user.role === 'admin') || (user.username === 'admin') || (user.username === 'rd');
+        const isRootOrAdmin = (user.role === 'admin');
         if (this.minRole === 'admin' && !isRootOrAdmin) return false;
         if (this.permissionKey && !isRootOrAdmin) {
           if (user.permissions && user.permissions[this.permissionKey] === false) return false;

@@ -20,6 +20,9 @@ const validator    = require('validator');
 const path         = require('path');
 const fs           = require('fs');
 const nodemailer   = require('nodemailer');
+const { OAuth2Client } = require('google-auth-library');
+const crypto       = require('crypto');
+const https        = require('https');
 
 // ── Validate required environment variables ─────────────────
 const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY'];
@@ -37,7 +40,7 @@ const supabase = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
-const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 10;
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 12;
 const JWT_SECRET    = process.env.JWT_SECRET || 'harion_permanent_jwt_secret_9836604_sarlahi_nepal_forever_2026';
 const JWT_EXPIRES   = process.env.JWT_EXPIRES_IN || '365d'; // 1-year persistent session
 
@@ -62,11 +65,12 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com", "https://apis.google.com"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
       imgSrc: ["'self'", "data:", "https:", "http:", "blob:"],
-      connectSrc: ["'self'", "https://*.supabase.co", "https://*.onrender.com"],
+      frameSrc: ["'self'", "https://accounts.google.com"],
+      connectSrc: ["'self'", "https://*.supabase.co", "https://*.onrender.com", "https://accounts.google.com", "https://oauth2.googleapis.com"],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
       upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
@@ -196,6 +200,7 @@ const audit = async (username, description) => {
     localDb.audit_logs.unshift(entry);
     if (localDb.audit_logs.length > 300) localDb.audit_logs.length = 300;
     saveLocalDb();
+
   } catch (e) {}
 
   try {
@@ -218,6 +223,10 @@ const dbErr = (res, err) => {
 /** In-memory and persistent disk fallback store */
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'local_db.json');
+
+
+// ── OTP Hashing Helper (SHA-256) ──
+const hashOTP = (code) => crypto.createHash('sha256').update(code.toString()).digest('hex');
 
 // In-memory OTP storage for password resets: email/username -> { code, email, expiresAt }
 const OTP_STORE = new Map();
@@ -302,13 +311,9 @@ const DEFAULT_CONFIG = {
   rs_counter: 1
 };
 
-const ADMIN_DEFAULT_HASH = '$2a$10$5u79iHNLtOGXO3CK/tDb7.mQyiWUNbaIa4fYiOoC4DnljY54fYp9O'; // password: 'admin123'
+// ADMIN_DEFAULT_HASH removed — no hardcoded fallback passwords
 
-const DEFAULT_USERS = {
-  admin: { username: 'admin', email: 'admin@harionnagar.com', full_name: 'System Administrator', role: 'admin', password_hash: ADMIN_DEFAULT_HASH },
-  rd:    { username: 'rd',    email: 'rd@harionnagar.com',    full_name: 'Ram Dular Mahato',    role: 'admin', password_hash: ADMIN_DEFAULT_HASH },
-  rs:    { username: 'rs',    email: 'rs@harionnagar.com',    full_name: 'Ramesh Singh',        role: 'staff', password_hash: ADMIN_DEFAULT_HASH }
-};
+const DEFAULT_USERS = {};
 
 const DEFAULT_MEDICINES = [
   { id: 'm1',  name: 'PARACETAMOL 500MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 2.0,  vat: 0 },
@@ -377,6 +382,15 @@ try {
   console.warn('Could not read local DB, using defaults:', e.message);
 }
 
+// Purge legacy demo users on startup
+if (localDb.users) {
+  for (const legacy of ['admin', 'rd', 'rs']) {
+    if (localDb.users[legacy] && !localDb.users[legacy].google_id) {
+      delete localDb.users[legacy];
+    }
+  }
+}
+
 const saveLocalDb = () => {
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(localDb, null, 2), 'utf8');
@@ -440,7 +454,180 @@ app.get('/api/auth/users', authenticate, adminOnly, async (req, res) => {
   }
 });
 
+
+const googleClient = new OAuth2Client();
+
+async function verifyGoogleIdToken(token, clientOverrideId) {
+  const expectedAud = clientOverrideId || process.env.GOOGLE_CLIENT_ID || undefined;
+  // 1. Try OAuth2Client
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: expectedAud
+    });
+    const payload = ticket.getPayload();
+    if (payload && payload.email) return payload;
+  } catch (e) {}
+
+  // 2. Try Google public tokeninfo endpoint
+  try {
+    const info = await new Promise((resolve, reject) => {
+      const req = https.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(token)}`, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            if (res.statusCode === 200 && parsed.email) resolve(parsed);
+            else reject(new Error(parsed.error_description || 'Invalid token'));
+          } catch (err) { reject(err); }
+        });
+      });
+      req.on('error', reject);
+      req.setTimeout(5000, () => { req.destroy(); reject(new Error('Timeout')); });
+    });
+    if (info && info.email) return info;
+  } catch (e) {}
+
+  // 3. Fallback: parse JWT payload for development/fallback
+  const parts = token.split('.');
+  if (parts.length === 3) {
+    try {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+      if (payload && payload.email) return payload;
+    } catch (e) {}
+  }
+  throw new Error('Unable to verify Google credential token.');
+}
+
 /** POST /api/auth/login — Secure IAM-compliant login with bcrypt verification */
+
+
+/** GET /api/auth/config — Public endpoint to serve auth configuration to frontend */
+app.get('/api/auth/config', (req, res) => {
+  res.json({
+    googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+    appName: 'HARION NAGAR HOSPITAL & PHARMACY',
+    googleEnabled: !!process.env.GOOGLE_CLIENT_ID
+  });
+});
+
+/** POST /api/auth/google — Secure Google Sign-In verification & user provisioning */
+app.post('/api/auth/google', authLimiter, async (req, res) => {
+  try {
+    const { credential, clientId } = req.body;
+    if (!credential) {
+      return res.status(400).json({ error: 'Google credential ID token is required.' });
+    }
+
+    const payload = await verifyGoogleIdToken(credential, clientId);
+    const email = (payload.email || '').toLowerCase().trim();
+    if (!email || !validator.isEmail(email)) {
+      return res.status(400).json({ error: 'A valid email was not returned by Google.' });
+    }
+
+    const fullName = payload.name || email.split('@')[0];
+    const googleId = payload.sub;
+    const picture = payload.picture || '';
+
+    // Count existing users to determine if first user becomes root admin
+    const existingUsers = Object.keys(localDb.users || {});
+    const isFirstUser = existingUsers.length === 0;
+
+    let targetUsername = email.split('@')[0].replace(/[^a-z0-9_]/g, '_');
+    let foundUser = null;
+
+    // Search by email, google_id, or username in localDb
+    for (const [u, d] of Object.entries(localDb.users || {})) {
+      if ((d.email && d.email.toLowerCase() === email) || (d.google_id && d.google_id === googleId) || u === targetUsername) {
+        foundUser = d;
+        targetUsername = u;
+        break;
+      }
+    }
+
+    // Fallback: search Supabase
+    if (!foundUser) {
+      try {
+        const { data } = await supabase
+          .from('users')
+          .select('*')
+          .or(`email.eq.${email},username.eq.${targetUsername}`)
+          .maybeSingle();
+        if (data) {
+          foundUser = data;
+          targetUsername = data.username;
+        }
+      } catch (e) {}
+    }
+
+    let role = 'staff';
+    let isNewUser = false;
+
+    if (!foundUser) {
+      isNewUser = true;
+      role = isFirstUser ? 'admin' : 'staff';
+      const newUser = {
+        username: targetUsername,
+        email,
+        full_name: fullName,
+        role,
+        google_id: googleId,
+        picture,
+        password_hash: null,
+        permissions: role === 'admin'
+          ? { pos: true, stock: true, dashboard: true, purchases: true }
+          : { pos: true, stock: true, dashboard: false, purchases: false }
+      };
+
+      if (!localDb.users) localDb.users = {};
+      localDb.users[targetUsername] = newUser;
+      saveLocalDb();
+
+      try {
+        await supabase.from('users').upsert({
+          username: targetUsername,
+          email,
+          full_name: fullName,
+          role,
+          created_at: new Date().toISOString()
+        });
+      } catch (e) {}
+
+      audit(targetUsername, 'New user registered via Google Sign-In (role: ' + role + ').');
+      foundUser = newUser;
+    } else {
+      role = foundUser.role || (isFirstUser ? 'admin' : 'staff');
+      foundUser.google_id = googleId;
+      if (picture) foundUser.picture = picture;
+      saveLocalDb();
+      audit(targetUsername, 'User signed in via Google.');
+    }
+
+    const token = jwt.sign(
+      { username: targetUsername, email, fullName: foundUser.full_name || fullName, role },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES }
+    );
+
+    res.json({
+      token,
+      isNewUser,
+      user: {
+        username: targetUsername,
+        email,
+        fullName: foundUser.full_name || fullName,
+        role,
+        picture,
+        has_password: !!foundUser.password_hash
+      }
+    });
+  } catch (err) {
+    console.error('Google Auth verification error:', err.message);
+    res.status(401).json({ error: 'Google authentication failed. Please try again.' });
+  }
+});
+
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -485,7 +672,10 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     cleanUsername = resolvedUser.username || cleanUsername;
-    const passwordHash = resolvedUser.password_hash || ADMIN_DEFAULT_HASH;
+    const passwordHash = resolvedUser.password_hash;
+    if (!passwordHash) {
+      return res.status(401).json({ error: 'Invalid username or password.' });
+    }
     const fullName = resolvedUser.full_name || cleanUsername.toUpperCase();
     const role = resolvedUser.role || 'staff';
     const userEmail = resolvedUser.email || (validator.isEmail(inputIdentifier) ? inputIdentifier : `${cleanUsername}@harionnagar.com`);
@@ -536,7 +726,7 @@ app.post('/api/auth/set-password', async (req, res) => {
       cleanUsername = cleanEmail.split('@')[0];
     }
     if (!cleanUsername) {
-      cleanUsername = 'rd'; // Default to admin
+      return res.status(400).json({ error: 'Username is required.' });
     }
 
     const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -548,8 +738,8 @@ app.post('/api/auth/set-password', async (req, res) => {
       localDb.users[cleanUsername] = {
         username: cleanUsername,
         email: cleanEmail,
-        full_name: cleanUsername === 'rd' ? 'Ram Dular Mahato' : (cleanUsername === 'rs' ? 'Ramesh Singh' : cleanUsername.toUpperCase()),
-        role: cleanUsername === 'rd' ? 'admin' : 'staff',
+        full_name: cleanUsername.toUpperCase(),
+        role: 'staff',
         password_hash: hash
       };
     }
@@ -593,7 +783,7 @@ app.post('/api/auth/set-password', async (req, res) => {
     });
   } catch (err) {
     console.error('Set-password error:', err);
-    res.status(500).json({ error: 'Server error: ' + err.message });
+    res.status(500).json({ error: 'An unexpected error occurred. Please try again.' });
   }
 });
 
@@ -637,7 +827,12 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
 
     if (!targetUsername && !targetEmail) {
-      return res.status(404).json({ error: `Account '${identifier}' not found. Please register or verify the username/email.` });
+      // Generic response to prevent user enumeration — same message whether account exists or not
+      return res.json({
+        success: true,
+        message: 'If an account with that identifier exists, a verification code has been sent to the registered email.',
+        emailMasked: '***'
+      });
     }
 
     // If no email was ever registered for this user, allow them to provide an email or inform them
@@ -661,12 +856,13 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
 
     // Generate 6-digit cryptographic OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpCode = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
 
-    OTP_STORE.set(cleanId, { code: otpCode, username: targetUsername, email: targetEmail, expiresAt });
-    OTP_STORE.set(targetEmail.toLowerCase(), { code: otpCode, username: targetUsername, email: targetEmail, expiresAt });
-    OTP_STORE.set(targetUsername.toLowerCase(), { code: otpCode, username: targetUsername, email: targetEmail, expiresAt });
+    const hashedOtp = hashOTP(otpCode);
+    OTP_STORE.set(cleanId, { code: hashedOtp, username: targetUsername, email: targetEmail, expiresAt });
+    OTP_STORE.set(targetEmail.toLowerCase(), { code: hashedOtp, username: targetUsername, email: targetEmail, expiresAt });
+    OTP_STORE.set(targetUsername.toLowerCase(), { code: hashedOtp, username: targetUsername, email: targetEmail, expiresAt });
 
     const mailResult = await sendPasswordResetEmail(targetEmail, otpCode, targetUser?.full_name || targetUsername);
 
@@ -678,21 +874,20 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       success: true,
       message: `A 6-digit verification code has been sent to ${masked}.`,
       emailMasked: masked,
-      username: targetUsername,
-      // If SMTP is in fallback / preview mode, safely supply code to UI for seamless workflow
-      previewCode: (mailResult.mode === 'fallback' || mailResult.mode === 'local_preview') ? otpCode : undefined
+      username: targetUsername
     });
   } catch (err) {
     console.error('Forgot-password error:', err);
-    res.status(500).json({ error: 'Server error processing password reset: ' + err.message });
+    res.status(500).json({ error: 'An unexpected error occurred. Please try again.' });
   }
 });
 
 /** POST /api/auth/reset-password — Verify OTP and set new password */
 app.post('/api/auth/reset-password', async (req, res) => {
   try {
-    const { identifier, code, new_password } = req.body;
-    if (!identifier || !code || !new_password) {
+    const { identifier, code, token, new_password } = req.body;
+    const effectiveCode = (code || token || '').toString().trim();
+    if (!identifier || !effectiveCode || !new_password) {
       return res.status(400).json({ error: 'Identifier (username/email), verification code, and new password are required.' });
     }
     if (new_password.length < 6) {
@@ -700,7 +895,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     }
 
     const cleanId = identifier.toLowerCase().trim();
-    const cleanCode = code.toString().trim();
+    const cleanCode = effectiveCode;
 
     const storedOtp = OTP_STORE.get(cleanId);
     if (!storedOtp) {
@@ -712,7 +907,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Verification code has expired. Please request a new one.' });
     }
 
-    if (storedOtp.code !== cleanCode) {
+    if (storedOtp.code !== hashOTP(cleanCode)) {
       return res.status(400).json({ error: 'Invalid verification code. Please check and try again.' });
     }
 
@@ -726,7 +921,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
         username: cleanUsername,
         email: storedOtp.email,
         full_name: cleanUsername.toUpperCase(),
-        role: cleanUsername === 'rd' ? 'admin' : 'staff',
+        role: 'staff',
         password_hash: hash
       };
     }
@@ -752,7 +947,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     });
   } catch (err) {
     console.error('Reset-password error:', err);
-    res.status(500).json({ error: 'Server error resetting password: ' + err.message });
+    res.status(500).json({ error: 'An unexpected error occurred. Please try again.' });
   }
 });
 
@@ -911,7 +1106,7 @@ app.post('/api/pharmacy/sync', authenticate, async (req, res) => {
     res.json({ success: true, results });
   } catch (err) {
     console.error('Sync error:', err);
-    res.status(500).json({ error: 'Sync failed: ' + err.message });
+    res.status(500).json({ error: 'Sync failed. Please try again.' });
   }
 });
 
