@@ -458,7 +458,7 @@ app.get('/api/auth/users', authenticate, adminOnly, async (req, res) => {
 const googleClient = new OAuth2Client();
 
 async function verifyGoogleIdToken(token, clientOverrideId) {
-  const expectedAud = clientOverrideId || process.env.GOOGLE_CLIENT_ID || undefined;
+  const expectedAud = clientOverrideId || GOOGLE_CLIENT_ID || undefined;
   // 1. Try OAuth2Client
   try {
     const ticket = await googleClient.verifyIdToken({
@@ -503,12 +503,14 @@ async function verifyGoogleIdToken(token, clientOverrideId) {
 /** POST /api/auth/login — Secure IAM-compliant login with bcrypt verification */
 
 
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '880560555970-neuabavd9cr5ca4n8t2kd3mltv4p7aeb.apps.googleusercontent.com';
+
 /** GET /api/auth/config — Public endpoint to serve auth configuration to frontend */
 app.get('/api/auth/config', (req, res) => {
   res.json({
-    googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+    googleClientId: GOOGLE_CLIENT_ID,
     appName: 'HARION NAGAR HOSPITAL & PHARMACY',
-    googleEnabled: !!process.env.GOOGLE_CLIENT_ID
+    googleEnabled: !!GOOGLE_CLIENT_ID
   });
 });
 
