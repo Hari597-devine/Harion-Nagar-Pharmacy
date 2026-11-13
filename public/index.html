@@ -3451,6 +3451,336 @@
     // ============================================================
     //  TAB: CUSTOMIZE (Admin System Configuration)
     // ============================================================
+    
+    // ============================================================
+    //  TAB: CUSTOMIZE (Admin System Configuration & Access Control)
+    // ============================================================
+    const _realCustView = (container) => {
+      const g = S.cfg;
+      const currentUser = S.users[U] ? { ...S.users[U], username: U } : { username: U, role: 'staff' };
+      const isAdmin = currentUser.role === 'admin';
+
+      if (!isAdmin) {
+        new AccessRestrictedModule().render(container);
+        return;
+      }
+
+      container.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <!-- 1. System Configuration & VAT -->
+          <div class="card" style="border-top:4px solid var(--ac);">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+              <h3 style="margin:0;display:flex;align-items:center;gap:8px;">${ICONS.settings} Pharmacy Configuration &amp; VAT Rate</h3>
+              <span class="user-badge" style="background:var(--ac-light);color:var(--ac);font-weight:700;">Admin &amp; Root Controls</span>
+            </div>
+            <p class="mu" style="margin-bottom:16px;font-size:13px;">
+              Configure hospital credentials, VAT % for billing calculations, PAN, and receipt headers. Changes apply instantly.
+            </p>
+
+            <div class="row" style="gap:12px;flex-wrap:wrap;">
+              <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Pharmacy Name</span><input id="cfg_name" value="${e(g.name)}" style="margin-top:4px;"></label>
+              <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Address</span><input id="cfg_addr" value="${e(g.addr)}" style="margin-top:4px;"></label>
+            </div>
+            <div class="row" style="gap:12px;flex-wrap:wrap;margin-top:8px;">
+              <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">PAN Number</span><input id="cfg_pan" value="${e(g.pan)}" style="margin-top:4px;width:120px;"></label>
+              <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Bill Prefix</span><input id="cfg_prefix" value="${e(g.prefix)}" style="margin-top:4px;width:100px;"></label>
+              <label class="f" style="background:#f0fdfa;padding:6px 12px;border:1px solid #99f6e4;border-radius:8px;">
+                <span style="font-size:12px;font-weight:700;color:var(--ac);text-transform:uppercase;">⭐ System VAT %</span>
+                <input id="cfg_vat" type="number" min="0" max="100" step="0.01" value="${g.vat || 0}" style="margin-top:4px;width:90px;font-weight:bold;color:var(--ac);">
+              </label>
+              <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Low Stock Alert</span><input id="cfg_low" type="number" min="1" value="${g.low_stock_level || g.low || 10}" style="margin-top:4px;width:90px;"></label>
+              <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Expiry Alert (days)</span><input id="cfg_expiry" type="number" min="1" value="${g.expiry_days || g.expiry || 90}" style="margin-top:4px;width:90px;"></label>
+            </div>
+            <div class="row" style="gap:12px;flex-wrap:wrap;margin-top:8px;">
+              <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Receipt Footer 1</span><input id="cfg_f1" value="${e(g.footer1 || '')}" style="margin-top:4px;"></label>
+              <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Receipt Footer 2</span><input id="cfg_f2" value="${e(g.footer2 || '')}" style="margin-top:4px;"></label>
+            </div>
+            <div class="row" style="gap:16px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_returns" ${g.returns_enabled ? 'checked' : ''} style="width:16px;height:16px;"><span>Enable Returns</span></label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_discount" ${g.discount_enabled ? 'checked' : ''} style="width:16px;height:16px;"><span>Enable Bill Discount</span></label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_adjpw" ${g.adj_password ? 'checked' : ''} style="width:16px;height:16px;"><span>Adjustment Password Gate</span></label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_autoprint" ${g.auto_print ? 'checked' : ''} style="width:16px;height:16px;"><span>Auto-Print Receipts</span></label>
+            </div>
+            <p class="err" id="cfg_err" style="margin-top:10px;"></p>
+            <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
+              <button onclick="saveConfig()" style="font-weight:700;">${ICONS.save} Save System Configuration &amp; VAT</button>
+              <span id="cfg_ok" style="display:none;color:#16a34a;font-weight:600;font-size:13px;">Saved successfully!</span>
+            </div>
+          </div>
+
+          <!-- 2. Online Payment QR Code -->
+          <div class="card" style="border-top:4px solid #3b82f6;">
+            <h3 style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">${ICONS.dollar} Online Payment QR Code (Fonepay / eSewa / Khalti)</h3>
+            <p class="mu" style="font-size:13px;margin-bottom:14px;">
+              Upload your official payment QR code image or paste an image URL. When enabled, cashiers and patients will see the QR code on the checkout screen.
+            </p>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+              <div style="flex:1;min-width:280px;">
+                <label class="f" style="margin-bottom:8px;">
+                  <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">QR Label / Bank Name</span>
+                  <input id="cfg_qr_label" value="${e(g.payment_qr_label || 'Scan to Pay')}" placeholder="e.g. NIC Asia Fonepay" style="margin-top:4px;">
+                </label>
+                <label class="f" style="margin-bottom:8px;">
+                  <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">QR Image URL or Data URI</span>
+                  <input id="cfg_qr_url" value="${e(g.payment_qr_url || '')}" placeholder="https://... or data:image/png;base64,..." style="margin-top:4px;" oninput="previewQR(this.value)">
+                </label>
+                <label class="f" style="margin-bottom:8px;">
+                  <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Or Upload QR Image File</span>
+                  <input type="file" id="cfg_qr_file" accept="image/*" style="margin-top:4px;" onchange="handleQRUpload(this)">
+                </label>
+                <div style="margin-top:12px;display:flex;gap:10px;align-items:center;">
+                  <button onclick="saveQR()" style="font-weight:700;">${ICONS.save} Save Payment QR</button>
+                  <span id="qr_ok" style="display:none;color:#16a34a;font-weight:600;font-size:13px;">QR saved!</span>
+                </div>
+              </div>
+              <div id="qr_preview_box" style="width:140px;height:140px;border:2px dashed var(--bd);border-radius:12px;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden;">
+                ${g.payment_qr_url ? `<img src="${e(g.payment_qr_url)}" alt="QR" style="max-width:100%;max-height:100%;object-fit:contain;">` : '<span class="mu" style="font-size:11px;text-align:center;padding:8px;">No QR configured</span>'}
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. User Role & Access Permission Matrix -->
+          <div class="card" style="border-top:4px solid #8b5cf6;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+              <h3 style="margin:0;display:flex;align-items:center;gap:8px;">${ICONS.settings} User Access &amp; Permission Controls</h3>
+              <span class="user-badge">Role-Based Access Control</span>
+            </div>
+            <p class="mu" style="font-size:13px;margin-bottom:14px;">
+              Root and Administrators can grant or revoke specific module access (POS Billing, Stock Management, Graphical Dashboard, Stock Purchases) for staff members.
+            </p>
+            <div style="overflow-x:auto;">
+              <table style="font-size:12px;">
+                <tr>
+                  <th>User</th>
+                  <th>Full Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th style="text-align:center;">Sales POS</th>
+                  <th style="text-align:center;">Stock</th>
+                  <th style="text-align:center;">Dashboard</th>
+                  <th style="text-align:center;">Purchases</th>
+                  <th>Actions</th>
+                </tr>
+                ${Object.entries(S.users || {}).map(([u, d]) => {
+                  const perm = d.permissions || {};
+                  const isRoot = (u === U && d.role === 'admin');
+                  const dis = isRoot ? 'disabled' : '';
+                  return `
+                  <tr>
+                    <td><b>${e(u)}</b></td>
+                    <td>${e(d.n || u)}</td>
+                    <td class="mu">${e(d.email || '—')}</td>
+                    <td>
+                      <select id="role_${u}" style="font-size:11px;padding:3px 6px;" ${dis}>
+                        <option value="staff" ${d.role === 'staff' ? 'selected' : ''}>Staff</option>
+                        <option value="admin" ${d.role === 'admin' ? 'selected' : ''}>Admin</option>
+                      </select>
+                    </td>
+                    <td style="text-align:center;"><input type="checkbox" id="perm_pos_${u}" ${perm.pos !== false ? 'checked' : ''} ${dis}></td>
+                    <td style="text-align:center;"><input type="checkbox" id="perm_stock_${u}" ${perm.stock !== false ? 'checked' : ''} ${dis}></td>
+                    <td style="text-align:center;"><input type="checkbox" id="perm_dash_${u}" ${perm.dashboard !== false ? 'checked' : ''} ${dis}></td>
+                    <td style="text-align:center;"><input type="checkbox" id="perm_purch_${u}" ${perm.purchases !== false ? 'checked' : ''} ${dis}></td>
+                    <td>
+                      ${!isRoot ? `
+                        <button class="g" style="padding:3px 10px;font-size:11px;font-weight:600;" onclick="saveUserRole('${u}')">Save</button>
+                        <button class="g" style="padding:3px 8px;font-size:11px;margin-left:4px;" onclick="resetUserPw('${u}')">Reset Pwd</button>
+                      ` : '<span class="mu" style="font-size:11px;">Current User</span>'}
+                    </td>
+                  </tr>`;
+                }).join('')}
+              </table>
+            </div>
+          </div>
+
+          <!-- 4. Register New Staff / Admin Account -->
+          <div class="card" style="border-top:4px solid #10b981;">
+            <h3 style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">${ICONS.plus} Register New Staff or Admin Account</h3>
+            <p class="mu" style="font-size:13px;margin-bottom:12px;">Create credential accounts manually or have staff sign in directly via Google.</p>
+            <div class="row" style="gap:12px;flex-wrap:wrap;">
+              <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Username (ID)</span><input id="nu_u" placeholder="e.g. nurse1" style="margin-top:4px;"></label>
+              <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Full Name</span><input id="nu_n" placeholder="e.g. Sita Mahato" style="margin-top:4px;"></label>
+              <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Role</span><select id="nu_r" style="margin-top:4px;"><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
+              <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Initial Password (Optional)</span><input id="nu_p" type="password" placeholder="Leave empty for prompt" style="margin-top:4px;"></label>
+              <button onclick="addNewUser()" style="align-self:flex-end;font-weight:700;">${ICONS.plus} Create User</button>
+            </div>
+            <p class="err" id="nu_err" style="margin-top:8px;"></p>
+          </div>
+
+          <!-- 5. Live Administrative Security Audit Log -->
+          <div class="card" style="border-top:4px solid #f59e0b;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+              <h3 style="margin:0;display:flex;align-items:center;gap:8px;">${ICONS.list} Security Audit Log (Tamper-Resistant)</h3>
+              <button class="g" onclick="loadAuditLogs()" style="font-size:12px;">Refresh Logs</button>
+            </div>
+            <p class="mu" style="font-size:13px;margin-bottom:12px;">Chronological administrative and authentication security events.</p>
+            <div id="audit_log_container">Loading audit trail...</div>
+          </div>
+        </div>
+      `;
+
+      loadAuditLogs();
+    };
+
+    function previewQR(url) {
+      const b = document.getElementById('qr_preview_box');
+      if (!b) return;
+      if (url && url.trim()) {
+        b.innerHTML = `<img src="${e(url.trim())}" alt="QR" style="max-width:100%;max-height:100%;object-fit:contain;">`;
+      } else {
+        b.innerHTML = '<span class="mu" style="font-size:11px;text-align:center;padding:8px;">No QR configured</span>';
+      }
+    }
+
+    function handleQRUpload(input) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        if (file.size > 2 * 1024 * 1024) {
+          toast('File too large (max 2MB).');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const urlInp = document.getElementById('cfg_qr_url');
+          if (urlInp) {
+            urlInp.value = ev.target.result;
+            previewQR(ev.target.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    async function saveConfig() {
+      const updates = {
+        name:             document.getElementById('cfg_name')?.value.trim(),
+        addr:             document.getElementById('cfg_addr')?.value.trim(),
+        pan:              document.getElementById('cfg_pan')?.value.trim(),
+        prefix:           (document.getElementById('cfg_prefix')?.value.trim() || '').toUpperCase(),
+        vat:              parseFloat(document.getElementById('cfg_vat')?.value) || 0,
+        low_stock_level:  parseInt(document.getElementById('cfg_low')?.value, 10) || 10,
+        expiry_days:      parseInt(document.getElementById('cfg_expiry')?.value, 10) || 90,
+        footer1:          document.getElementById('cfg_f1')?.value.trim(),
+        footer2:          document.getElementById('cfg_f2')?.value.trim(),
+        returns_enabled:  document.getElementById('cfg_returns')?.checked,
+        discount_enabled: document.getElementById('cfg_discount')?.checked,
+        adj_password:     document.getElementById('cfg_adjpw')?.checked,
+        auto_print:       document.getElementById('cfg_autoprint')?.checked
+      };
+      try {
+        const res = await apiCall('/api/pharmacy/config', {
+          method: 'POST',
+          body: JSON.stringify(updates)
+        });
+        S.cfg = { ...S.cfg, ...(res.config || updates) };
+        saveLocalCache();
+        const ok = document.getElementById('cfg_ok');
+        if (ok) { ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 3000); }
+        toast('System configuration & VAT saved!');
+        V.cust();
+      } catch(err) {
+        const el = document.getElementById('cfg_err');
+        if (el) el.textContent = err.message || 'Save failed.';
+      }
+    }
+
+    async function saveQR() {
+      const url   = document.getElementById('cfg_qr_url')?.value.trim() || '';
+      const label = document.getElementById('cfg_qr_label')?.value.trim() || 'Scan to Pay';
+      try {
+        await apiCall('/api/pharmacy/config', {
+          method: 'POST',
+          body: JSON.stringify({ payment_qr_url: url, payment_qr_label: label })
+        });
+        S.cfg.payment_qr_url = url;
+        S.cfg.payment_qr_label = label;
+        saveLocalCache();
+        const ok = document.getElementById('qr_ok');
+        if (ok) { ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 3000); }
+        toast('Online payment QR code saved!');
+        V.cust();
+      } catch(err) {
+        toast(err.message || 'QR code save failed.');
+      }
+    }
+
+    async function saveUserRole(username) {
+      const roleEl = document.getElementById('role_' + username);
+      const role = roleEl?.value || 'staff';
+      const permissions = {
+        pos:       document.getElementById('perm_pos_' + username)?.checked !== false,
+        stock:     document.getElementById('perm_stock_' + username)?.checked !== false,
+        dashboard: document.getElementById('perm_dash_' + username)?.checked !== false,
+        purchases: document.getElementById('perm_purch_' + username)?.checked !== false
+      };
+      try {
+        await apiCall('/api/users/' + encodeURIComponent(username) + '/role', {
+          method: 'PATCH',
+          body: JSON.stringify({ role, permissions })
+        });
+        if (S.users[username]) {
+          S.users[username].role = role;
+          S.users[username].permissions = permissions;
+        }
+        saveLocalCache();
+        toast('Role & permissions updated for ' + username);
+        V.cust();
+      } catch(err) {
+        toast(err.message || 'Role update failed.');
+      }
+    }
+
+    async function addNewUser() {
+      const u = ($('#nu_u')?.value || '').toLowerCase().trim();
+      const n = ($('#nu_n')?.value || '').trim();
+      const r = $('#nu_r')?.value || 'staff';
+      const p = $('#nu_p')?.value || '';
+      const errEl = $('#nu_err');
+
+      if (!u || u.length < 2) {
+        if (errEl) errEl.textContent = 'Username must be at least 2 characters.';
+        return;
+      }
+      if (!n) {
+        if (errEl) errEl.textContent = 'Please enter the user full name.';
+        return;
+      }
+
+      try {
+        const created = await apiCall('/api/users', {
+          method: 'POST',
+          body: JSON.stringify({ username: u, full_name: n, role: r, password: p || undefined })
+        });
+
+        S.users[created.username] = {
+          n: created.full_name,
+          role: created.role,
+          has_password: created.has_password
+        };
+        saveLocalCache();
+        toast(`User ${created.full_name} (${created.username}) created successfully!`);
+        V.cust();
+      } catch (err) {
+        if (errEl) errEl.textContent = err.message;
+        toast(err.message);
+      }
+    }
+
+    async function resetUserPw(u) {
+      if (!await ask()) return;
+      try {
+        await apiCall('/api/users/reset-password', {
+          method: 'POST',
+          body: JSON.stringify({ username: u })
+        });
+        if (S.users[u]) S.users[u].has_password = false;
+        saveLocalCache();
+        toast(`Password cleared for ${u}. They will set a new one upon next login.`);
+        V.cust();
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
     async function loadAuditLogs() {
       const container = document.getElementById('audit_log_container');
       if (!container) return;
