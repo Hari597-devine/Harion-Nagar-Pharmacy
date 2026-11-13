@@ -317,47 +317,14 @@ const DEFAULT_CONFIG = {
 
 const DEFAULT_USERS = {};
 
-const DEFAULT_MEDICINES = [
-  { id: 'm1',  name: 'PARACETAMOL 500MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 2.0,  vat: 0 },
-  { id: 'm2',  name: 'AMOXICILLIN 500MG CAPSULE', unit: 'PCS', hs_code: '3004.10', mrp: 12.0, vat: 0 },
-  { id: 'm3',  name: 'PANTO 40MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 8.0,  vat: 0 },
-  { id: 'm4',  name: 'CETIRIZINE 10MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 4.0,  vat: 0 },
-  { id: 'm5',  name: 'AZITHROMYCIN 500MG TABLET', unit: 'PCS', hs_code: '3004.20', mrp: 35.0, vat: 0 },
-  { id: 'm6',  name: 'METFORMIN 500MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 5.0,  vat: 0 },
-  { id: 'm7',  name: 'AMLODIPINE 5MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 6.0,  vat: 0 },
-  { id: 'm8',  name: 'ORS JEEVAN JAL SACHET', unit: 'PCS', hs_code: '3004.90', mrp: 15.0, vat: 0 },
-  { id: 'm9',  name: 'IBUPROFEN 400MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 4.5,  vat: 0 },
-  { id: 'm10', name: 'CIPROFLOXACIN 500MG TABLET', unit: 'PCS', hs_code: '3004.20', mrp: 18.0, vat: 0 },
-  { id: 'm11', name: 'COUGH SYRUP 100ML', unit: 'BTL', hs_code: '3004.90', mrp: 95.0, vat: 0 },
-  { id: 'm12', name: 'NORMAL SALINE 500ML IV', unit: 'BTL', hs_code: '3004.90', mrp: 65.0, vat: 0 },
-  { id: 'm13', name: 'RINGER LACTATE 500ML IV', unit: 'BTL', hs_code: '3004.90', mrp: 75.0, vat: 0 },
-  { id: 'm14', name: 'OMEPRAZOLE 20MG CAPSULE', unit: 'PCS', hs_code: '3004.90', mrp: 7.0,  vat: 0 },
-  { id: 'm15', name: 'DICLOFENAC 50MG TABLET', unit: 'PCS', hs_code: '3004.90', mrp: 5.0,  vat: 0 }
-];
-
-const DEFAULT_STOCK = [
-  { id: 's1',  medicine_id: 'm1',  medicine_name: 'PARACETAMOL 500MG TABLET', batch: 'PARA-2024', expiry: '2026-12', quantity: 500, cost_price: 1.2,  mrp: 2.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
-  { id: 's2',  medicine_id: 'm2',  medicine_name: 'AMOXICILLIN 500MG CAPSULE', batch: 'AMOX-881',  expiry: '2026-08', quantity: 200, cost_price: 8.5,  mrp: 12.0, unit: 'PCS', hs_code: '3004.10', vat: 0 },
-  { id: 's3',  medicine_id: 'm3',  medicine_name: 'PANTO 40MG TABLET', batch: 'PANTO-502', expiry: '2027-01', quantity: 350, cost_price: 5.0,  mrp: 8.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
-  { id: 's4',  medicine_id: 'm4',  medicine_name: 'CETIRIZINE 10MG TABLET', batch: 'CET-109',   expiry: '2026-10', quantity: 300, cost_price: 2.5,  mrp: 4.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
-  { id: 's5',  medicine_id: 'm5',  medicine_name: 'AZITHROMYCIN 500MG TABLET', batch: 'AZI-404',   expiry: '2026-11', quantity: 150, cost_price: 24.0, mrp: 35.0, unit: 'PCS', hs_code: '3004.20', vat: 0 },
-  { id: 's6',  medicine_id: 'm6',  medicine_name: 'METFORMIN 500MG TABLET', batch: 'MET-301',   expiry: '2027-03', quantity: 400, cost_price: 3.2,  mrp: 5.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
-  { id: 's7',  medicine_id: 'm7',  medicine_name: 'AMLODIPINE 5MG TABLET', batch: 'AMLO-202',  expiry: '2026-09', quantity: 250, cost_price: 3.8,  mrp: 6.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
-  { id: 's8',  medicine_id: 'm8',  medicine_name: 'ORS JEEVAN JAL SACHET', batch: 'ORS-901',   expiry: '2027-06', quantity: 180, cost_price: 10.0, mrp: 15.0, unit: 'PCS', hs_code: '3004.90', vat: 0 },
-  { id: 's9',  medicine_id: 'm9',  medicine_name: 'IBUPROFEN 400MG TABLET', batch: 'IBU-707',   expiry: '2026-12', quantity: 220, cost_price: 2.8,  mrp: 4.5,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
-  { id: 's10', medicine_id: 'm10', medicine_name: 'CIPROFLOXACIN 500MG TABLET', batch: 'CIPRO-110', expiry: '2026-07', quantity: 100, cost_price: 12.0, mrp: 18.0, unit: 'PCS', hs_code: '3004.20', vat: 0 },
-  { id: 's11', medicine_id: 'm11', medicine_name: 'COUGH SYRUP 100ML', batch: 'COUGH-55',  expiry: '2026-05', quantity: 60,  cost_price: 65.0, mrp: 95.0, unit: 'BTL', hs_code: '3004.90', vat: 0 },
-  { id: 's12', medicine_id: 'm12', medicine_name: 'NORMAL SALINE 500ML IV', batch: 'NS-442',    expiry: '2027-02', quantity: 80,  cost_price: 45.0, mrp: 65.0, unit: 'BTL', hs_code: '3004.90', vat: 0 },
-  { id: 's13', medicine_id: 'm13', medicine_name: 'RINGER LACTATE 500ML IV', batch: 'RL-318',    expiry: '2027-04', quantity: 75,  cost_price: 52.0, mrp: 75.0, unit: 'BTL', hs_code: '3004.90', vat: 0 },
-  { id: 's14', medicine_id: 'm14', medicine_name: 'OMEPRAZOLE 20MG CAPSULE', batch: 'OMEP-883',  expiry: '2026-11', quantity: 300, cost_price: 4.2,  mrp: 7.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 },
-  { id: 's15', medicine_id: 'm15', medicine_name: 'DICLOFENAC 50MG TABLET', batch: 'DICLO-01',  expiry: '2026-10', quantity: 200, cost_price: 3.0,  mrp: 5.0,  unit: 'PCS', hs_code: '3004.90', vat: 0 }
-];
+const DEFAULT_MEDICINES = [];
+const DEFAULT_STOCK = [];
 
 let localDb = {
   config: { ...DEFAULT_CONFIG },
   users: { ...DEFAULT_USERS },
-  medicines: [...DEFAULT_MEDICINES],
-  stock: [...DEFAULT_STOCK],
+  medicines: [],
+  stock: [],
   sales: [],
   purchases: [],
   returns: [],
@@ -374,8 +341,8 @@ try {
       ...parsed,
       config: { ...DEFAULT_CONFIG, ...(parsed.config || {}) },
       users: { ...DEFAULT_USERS, ...(parsed.users || {}) },
-      medicines: (parsed.medicines && parsed.medicines.length) ? parsed.medicines : [...DEFAULT_MEDICINES],
-      stock: (parsed.stock && parsed.stock.length) ? parsed.stock : [...DEFAULT_STOCK]
+      medicines: Array.isArray(parsed.medicines) ? parsed.medicines : [],
+      stock: Array.isArray(parsed.stock) ? parsed.stock : []
     };
   } else {
     fs.writeFileSync(DATA_FILE, JSON.stringify(localDb, null, 2), 'utf8');
