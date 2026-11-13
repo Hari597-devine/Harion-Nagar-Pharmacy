@@ -733,16 +733,19 @@ app.post('/api/auth/set-password', async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const isFirstUser = Object.keys(localDb.users || {}).length === 0;
+    const assignedRole = isFirstUser ? 'admin' : 'staff';
 
     if (localDb.users[cleanUsername]) {
       localDb.users[cleanUsername].password_hash = hash;
       if (cleanEmail) localDb.users[cleanUsername].email = cleanEmail;
+      if (isFirstUser) localDb.users[cleanUsername].role = 'admin';
     } else {
       localDb.users[cleanUsername] = {
         username: cleanUsername,
         email: cleanEmail,
         full_name: cleanUsername.toUpperCase(),
-        role: 'staff',
+        role: assignedRole,
         password_hash: hash
       };
     }

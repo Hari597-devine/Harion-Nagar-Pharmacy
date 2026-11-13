@@ -1421,6 +1421,10 @@
             Sign In &rarr;
           </button>
 
+          <div style="text-align:center;margin-top:14px;">
+            <a href="#" onclick="event.preventDefault();showFirstTimeAdminModal()" style="color:var(--ac);font-size:12px;font-weight:600;text-decoration:none;">First time setup? Create Root Admin account</a>
+          </div>
+
           <p style="text-align:center;font-size:11px;color:var(--mu);margin-top:20px;line-height:1.5;">
             ${ICONS.lock} Secured with bcrypt + SHA-256 &bull; Session ends on tab close
           </p>
@@ -1439,37 +1443,72 @@
     }
 
     function triggerGoogleSignIn() {
-      if (typeof google === 'undefined' || !google.accounts) {
-        toast('Google Sign-In is loading. Please wait a moment and try again.');
+      const clientId = GOOGLE_CLIENT_ID;
+      if (!clientId) {
+        toast('Google Client ID is not configured.');
         return;
       }
-      try {
-        initGoogleSignIn();
-        google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            // Fallback: render the standard Google button
-            const container = document.createElement('div');
-            container.id = 'g_btn_container';
-            container.style.cssText = 'display:flex;justify-content:center;margin-top:12px;';
-            const btn = document.getElementById('btn_google');
-            if (btn && btn.parentNode) {
-              btn.parentNode.insertBefore(container, btn.nextSibling);
-              btn.style.display = 'none';
-              google.accounts.id.renderButton(container, {
-                type: 'standard',
-                shape: 'pill',
-                theme: 'outline',
-                size: 'large',
-                text: 'signin_with',
-                width: 360
-              });
+
+      // Check if GIS prompt can be used
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+        try {
+          initGoogleSignIn();
+          google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              openGoogleOAuthPopup(clientId);
             }
-          }
-        });
-      } catch (err) {
-        toast('Google Sign-In is not available. Please use credentials.');
-        console.warn('Google prompt error:', err);
+          });
+          return;
+        } catch (e) {
+          console.warn('GIS prompt error, using OAuth popup fallback:', e);
+        }
       }
+
+      openGoogleOAuthPopup(clientId);
+    }
+
+    function openGoogleOAuthPopup(clientId) {
+      const redirectUri = window.location.origin;
+      const oauthUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
+        'client_id=' + encodeURIComponent(clientId) +
+        '&redirect_uri=' + encodeURIComponent(redirectUri) +
+        '&response_type=' + encodeURIComponent('token id_token') +
+        '&scope=' + encodeURIComponent('openid email profile') +
+        '&nonce=' + Math.random().toString(36).substring(2) +
+        '&prompt=select_account';
+
+      const w = 500, h = 600;
+      const left = window.screenLeft + (window.outerWidth - w) / 2;
+      const top = window.screenTop + (window.outerHeight - h) / 2;
+      const win = window.open(oauthUrl, 'GoogleAuthPopup', 'width=' + w + ',height=' + h + ',top=' + top + ',left=' + left);
+      if (!win) {
+        window.location.href = oauthUrl;
+      }
+    }
+
+    // Listen for OAuth messages from popup or handle hash redirect
+    window.addEventListener('message', (ev) => {
+      if (ev.origin !== window.location.origin) return;
+      if (ev.data && ev.data.type === 'GOOGLE_AUTH_TOKEN' && ev.data.token) {
+        handleGoogleCredentialResponse({ credential: ev.data.token });
+      }
+    });
+
+    // Check if current window was redirected with id_token in hash
+    if (window.location.hash) {
+      try {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const idToken = hashParams.get('id_token');
+        if (idToken) {
+          if (window.opener) {
+            window.opener.postMessage({ type: 'GOOGLE_AUTH_TOKEN', token: idToken }, window.location.origin);
+            window.close();
+          } else {
+            history.replaceState(null, null, window.location.pathname);
+            setTimeout(() => { handleGoogleCredentialResponse({ credential: idToken }); }, 200);
+          }
+        }
+      } catch (e) {}
     }
 
     function togglePwdVis(inputId, iconId) {
@@ -1539,6 +1578,69 @@
         saveLocalCache();
         if (U) render();
       }).catch(err => { console.warn('Post-login sync:', err.message); loadLocalCache(); if (U) render(); });
+    }
+
+    function showFirstTimeAdminModal() {
+      const modal = document.createElement('div');
+      modal.className = 'ov';
+      modal.innerHTML = `
+        <div class="card" style="max-width:390px;padding:28px;border-radius:18px;text-align:center;">
+          <div style="display:inline-flex;padding:12px;background:var(--ac-light);color:var(--ac);border-radius:14px;margin-bottom:12px;">
+            ${ICONS.lock}
+          </div>
+          <h3 style="font-size:18px;font-weight:700;margin-bottom:6px;justify-content:center;">Initialize Root Administrator</h3>
+          <p class="mu" style="font-size:12px;margin-bottom:18px;line-height:1.5;">
+            Create your hospital owner administrator account to start managing the pharmacy.
+          </p>
+          <label class="f" style="margin-bottom:12px;text-align:left;">
+            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Username</span>
+            <input id="init_u" type="text" placeholder="e.g. admin or yourname" style="margin-top:5px;">
+          </label>
+          <label class="f" style="margin-bottom:12px;text-align:left;">
+            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Gmail Address</span>
+            <input id="init_e" type="email" placeholder="yourname@gmail.com" style="margin-top:5px;">
+          </label>
+          <label class="f" style="margin-bottom:14px;text-align:left;">
+            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Password (min 6 chars)</span>
+            <input id="init_p" type="password" placeholder="Create secure password" style="margin-top:5px;">
+          </label>
+          <p class="err" id="init_err" style="margin-bottom:12px;min-height:18px;"></p>
+          <div style="display:flex;gap:10px;">
+            <button id="init_btn" style="flex:1;font-weight:700;">Create Admin &amp; Sign In &rarr;</button>
+            <button class="g" id="init_cancel" style="flex:0 0 80px;">Cancel</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+
+      const btn = modal.querySelector('#init_btn');
+      const cancelBtn = modal.querySelector('#init_cancel');
+      const err = modal.querySelector('#init_err');
+      cancelBtn.onclick = () => modal.remove();
+
+      btn.onclick = async () => {
+        const u = modal.querySelector('#init_u').value.trim();
+        const em = modal.querySelector('#init_e').value.trim();
+        const p = modal.querySelector('#init_p').value;
+        if (!u) { err.textContent = 'Username is required.'; return; }
+        if (!p || p.length < 6) { err.textContent = 'Password must be at least 6 characters.'; return; }
+        btn.disabled = true; btn.textContent = 'Creating...';
+        try {
+          const res = await apiCall('/api/auth/set-password', {
+            method: 'POST',
+            body: JSON.stringify({ username: u, email: em, password: p })
+          });
+          setToken(res.token);
+          sessionStorage.setItem(USER_KEY, res.user.username);
+          U = res.user.username;
+          S.users[U] = { n: res.user.fullName || U, email: res.user.email || '', role: res.user.role || 'admin', has_password: true };
+          modal.remove();
+          toast('Root Administrator account initialized successfully!');
+          fetchAndRender();
+        } catch(e) {
+          btn.disabled = false; btn.textContent = 'Create Admin & Sign In →';
+          err.textContent = e.message || 'Setup failed.';
+        }
+      };
     }
 
     function showEmailCollectionModal(username, onDone) {
