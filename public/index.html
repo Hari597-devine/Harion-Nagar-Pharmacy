@@ -1449,66 +1449,47 @@
         return;
       }
 
-      // Check if GIS prompt can be used
-      if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-        try {
-          initGoogleSignIn();
-          google.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-              openGoogleOAuthPopup(clientId);
-            }
-          });
-          return;
-        } catch (e) {
-          console.warn('GIS prompt error, using OAuth popup fallback:', e);
+      // Check if GIS library is loaded
+      if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+        toast('Google Sign-In is loading. Please wait a moment and try again.');
+        // Try loading the GIS script if not present
+        if (!document.querySelector('script[src*="accounts.google.com/gsi/client"]')) {
+          const s = document.createElement('script');
+          s.src = 'https://accounts.google.com/gsi/client';
+          s.async = true;
+          s.defer = true;
+          s.onload = () => { initGoogleSignIn(); renderGoogleButton(); };
+          document.head.appendChild(s);
         }
+        return;
       }
 
-      openGoogleOAuthPopup(clientId);
-    }
+      // Initialize GIS if needed
+      initGoogleSignIn();
 
-    function openGoogleOAuthPopup(clientId) {
-      const redirectUri = window.location.origin;
-      const oauthUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
-        'client_id=' + encodeURIComponent(clientId) +
-        '&redirect_uri=' + encodeURIComponent(redirectUri) +
-        '&response_type=' + encodeURIComponent('token id_token') +
-        '&scope=' + encodeURIComponent('openid email profile') +
-        '&nonce=' + Math.random().toString(36).substring(2) +
-        '&prompt=select_account';
-
-      const w = 500, h = 600;
-      const left = window.screenLeft + (window.outerWidth - w) / 2;
-      const top = window.screenTop + (window.outerHeight - h) / 2;
-      const win = window.open(oauthUrl, 'GoogleAuthPopup', 'width=' + w + ',height=' + h + ',top=' + top + ',left=' + left);
-      if (!win) {
-        window.location.href = oauthUrl;
-      }
-    }
-
-    // Listen for OAuth messages from popup or handle hash redirect
-    window.addEventListener('message', (ev) => {
-      if (ev.origin !== window.location.origin) return;
-      if (ev.data && ev.data.type === 'GOOGLE_AUTH_TOKEN' && ev.data.token) {
-        handleGoogleCredentialResponse({ credential: ev.data.token });
-      }
-    });
-
-    // Check if current window was redirected with id_token in hash
-    if (window.location.hash) {
+      // Use GIS One Tap / prompt flow (no redirect URI needed)
       try {
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const idToken = hashParams.get('id_token');
-        if (idToken) {
-          if (window.opener) {
-            window.opener.postMessage({ type: 'GOOGLE_AUTH_TOKEN', token: idToken }, window.location.origin);
-            window.close();
-          } else {
-            history.replaceState(null, null, window.location.pathname);
-            setTimeout(() => { handleGoogleCredentialResponse({ credential: idToken }); }, 200);
+        google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            // Prompt was blocked (e.g. user dismissed before, cooldown, or 3p cookies blocked)
+            // Try clicking the rendered GIS button as fallback
+            const slot = document.getElementById('g_btn_slot');
+            if (slot) {
+              const gisIframe = slot.querySelector('iframe');
+              const gisDiv = slot.querySelector('[role="button"]');
+              if (gisDiv) {
+                gisDiv.click();
+                return;
+              }
+            }
+            // If no GIS button rendered, show guidance
+            toast('Please click the "Sign in with Google" button above, or allow popups for this site.');
           }
-        }
-      } catch (e) {}
+        });
+      } catch (e) {
+        console.warn('GIS prompt error:', e);
+        toast('Google Sign-In encountered an error. Please refresh and try again.');
+      }
     }
 
     function togglePwdVis(inputId, iconId) {
