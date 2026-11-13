@@ -937,7 +937,7 @@
     let isOffline = false;
 
     // ── Google Sign-In Configuration ──
-    let GOOGLE_CLIENT_ID = '';
+    let GOOGLE_CLIENT_ID = '880560555970-neuabavd9cr5ca4n8t2kd3mltv4p7aeb.apps.googleusercontent.com';
     let googleAuthInitialized = false;
 
     async function fetchGoogleConfig() {
@@ -954,7 +954,7 @@
     }
 
     function initGoogleSignIn() {
-      if (googleAuthInitialized || !GOOGLE_CLIENT_ID || typeof google === 'undefined') return;
+      if (!GOOGLE_CLIENT_ID || typeof google === 'undefined' || !google.accounts) return;
       try {
         google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
@@ -963,9 +963,33 @@
           cancel_on_tap_outside: true
         });
         googleAuthInitialized = true;
-        console.log('[Auth] Google Sign-In initialized');
       } catch (e) {
         console.warn('Google Sign-In init failed:', e.message);
+      }
+    }
+
+    function renderGoogleButton() {
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+        initGoogleSignIn();
+        const slot = document.getElementById('g_btn_slot');
+        if (slot) {
+          slot.innerHTML = '';
+          try {
+            google.accounts.id.renderButton(slot, {
+              type: 'standard',
+              theme: 'outline',
+              size: 'large',
+              text: 'signin_with',
+              shape: 'rectangular',
+              logo_alignment: 'left',
+              width: 320
+            });
+            const customBtn = document.getElementById('btn_google_custom');
+            if (customBtn) customBtn.style.display = 'none';
+          } catch(e) {
+            console.warn('renderButton fallback to custom:', e);
+          }
+        }
       }
     }
 
@@ -1305,15 +1329,16 @@
 
       // Fetch Google Sign-In config (non-blocking)
       fetchGoogleConfig().then(hasGoogle => {
+        renderGoogleButton();
         if (hasGoogle) {
-          // Wait for GIS library to load then init
           const waitForGIS = setInterval(() => {
             if (typeof google !== 'undefined' && google.accounts) {
               clearInterval(waitForGIS);
               initGoogleSignIn();
+              renderGoogleButton();
             }
           }, 200);
-          setTimeout(() => clearInterval(waitForGIS), 8000); // Give up after 8s
+          setTimeout(() => clearInterval(waitForGIS), 8000);
         }
       });
 
@@ -1348,7 +1373,8 @@
           </div>
 
           ${hasGoogle ? `
-            <button id="btn_google" onclick="triggerGoogleSignIn()"
+            <div id="g_btn_slot" style="display:flex;justify-content:center;margin-bottom:12px;min-height:44px;"></div>
+            <button id="btn_google_custom" onclick="triggerGoogleSignIn()"
               style="width:100%;height:50px;font-size:15px;font-weight:600;border-radius:14px;background:#fff;color:#3c4043;cursor:pointer;border:1.5px solid #dadce0;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.08);"
               onmouseenter="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.12)';this.style.borderColor='#bdc1c6'"
               onmouseleave="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)';this.style.borderColor='#dadce0'">
@@ -1402,10 +1428,9 @@
           </p>
         </div>`;
 
-      // Render the Google one-tap button in the container if available
-      if (hasGoogle && typeof google !== 'undefined' && google.accounts) {
-        try { initGoogleSignIn(); } catch(e) {}
-      }
+      // Render the Google Sign-In button
+      renderGoogleButton();
+      setTimeout(renderGoogleButton, 400);
 
       setTimeout(() => {
         const userField = document.getElementById('login_user');
