@@ -3713,7 +3713,7 @@
       const g = S.cfg;
       const currentUser = S.users[U] ? { ...S.users[U], username: U } : { username: U, role: 'staff' };
       const isAdmin = currentUser.role === 'admin';
-      const userEmail = currentUser.email || (currentUser.username === 'admin' ? 'singhharishankar797@gmail.com' : '');
+      const userEmail = currentUser.email || (currentUser.username === 'singhharishankar797' ? 'singhharishankar797@gmail.com' : '');
 
       let html = `
         <div style="display:flex;flex-direction:column;gap:20px;">
@@ -3920,7 +3920,7 @@
                 </tr>
                 ${Object.entries(S.users || {}).map(([u, d]) => {
                   const perm = d.permissions || {};
-                  const isRoot = (u === 'admin' || d.email === 'singhharishankar797@gmail.com');
+                  const isRoot = (u === 'singhharishankar797' || d.email === 'singhharishankar797@gmail.com');
                   const isCurrent = (u === U);
                   const dis = (isRoot || isCurrent) ? 'disabled' : '';
                   return `

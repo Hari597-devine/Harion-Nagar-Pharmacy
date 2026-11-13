@@ -366,11 +366,12 @@ if (localDb.users) {
   }
 }
 
-// Seed / ensure root admin user exists with email singhharishankar797@gmail.com
+// Seed / ensure root admin user exists: singhharishankar797
 if (!localDb.users) localDb.users = {};
-if (!localDb.users['admin']) {
-  localDb.users['admin'] = {
-    username: 'admin',
+delete localDb.users['admin']; // Purge legacy admin user
+if (!localDb.users['singhharishankar797']) {
+  localDb.users['singhharishankar797'] = {
+    username: 'singhharishankar797',
     full_name: 'Hari Shankar Mahato',
     email: 'singhharishankar797@gmail.com',
     role: 'admin',
@@ -378,9 +379,9 @@ if (!localDb.users['admin']) {
     permissions: { pos: true, stock: true, dashboard: true, purchases: true, reports: true, returns: true, adj: true, settings: true }
   };
 } else {
-  if (!localDb.users['admin'].email) {
-    localDb.users['admin'].email = 'singhharishankar797@gmail.com';
-  }
+  localDb.users['singhharishankar797'].role = 'admin';
+  localDb.users['singhharishankar797'].email = 'singhharishankar797@gmail.com';
+  localDb.users['singhharishankar797'].full_name = 'Hari Shankar Mahato';
 }
 
 const saveLocalDb = () => {
@@ -1905,7 +1906,7 @@ app.delete('/api/users/:username', authenticate, adminOnly, async (req, res) => 
     const caller = req.user.username.toLowerCase().trim();
 
     // Prevent removing root admin
-    if (target === 'admin') {
+    if (target === 'singhharishankar797' || target === 'admin') {
       return res.status(403).json({ error: 'Cannot remove the primary Root Admin account.' });
     }
     if (target === caller) {
@@ -2067,7 +2068,7 @@ app.patch('/api/users/:username/role', authenticate, adminOnly, async (req, res)
     const { role, permissions } = req.body;
     const validRoles = ['admin', 'staff'];
     if (!validRoles.includes(role)) return res.status(400).json({ error: 'Role must be admin or staff.' });
-    if (target === 'admin') return res.status(403).json({ error: 'Cannot change the root admin role.' });
+    if (target === 'singhharishankar797' || target === 'admin') return res.status(403).json({ error: 'Cannot change the root admin role.' });
 
     if (localDb.users[target]) {
       localDb.users[target].role = role;
