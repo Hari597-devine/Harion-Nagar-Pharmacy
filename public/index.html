@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>HARION NAGAR HOSPITAL & PHARMACY INVENTORY — Management System</title>
+  <title>HARION NAGAR PHARMACY — Management System</title>
 
   <!-- Typography: Inter for clean UI, JetBrains Mono for financial figures & codes -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1035,7 +1035,7 @@
 
     // Default System Parameters
     const DC = {
-      name: 'HARION NAGAR HOSPITAL & PHARMACY',
+      name: 'HARION NAGAR PHARMACY',
       addr: 'Harion-4, Sasapur, Sarlahi',
       pan: '609836604',
       prefix: 'BASR',
@@ -1708,7 +1708,7 @@
           </div>
           <h3 style="font-size:18px;font-weight:700;margin-bottom:6px;justify-content:center;">Initialize Root Administrator</h3>
           <p class="mu" style="font-size:12px;margin-bottom:18px;line-height:1.5;">
-            Create your hospital owner administrator account to start managing the pharmacy.
+            Create your pharmacy administrator account to start managing inventory and sales.
           </p>
           <label class="f" style="margin-bottom:12px;text-align:left;">
             <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Username</span>
@@ -2749,7 +2749,7 @@
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
             <div>
               <h2 style="font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;">
-                ${ICONS.chart} HARION NAGAR HOSPITAL &amp; PHARMACY INVENTORY
+                ${ICONS.chart} HARION NAGAR PHARMACY INVENTORY
               </h2>
               <p class="mu" style="font-size:12px;margin-top:2px;">
                 Sasapur, Harion-4, Sarlahi &bull; Visual Analytics &amp; Inventory Management System
@@ -3269,7 +3269,7 @@
       $('#pg').innerHTML = `
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <h3>${ICONS.ledger} Hospital Admin Financial Ledger & Trading Accounts</h3>
+            <h3>${ICONS.ledger} Financial Ledger & Trading Accounts</h3>
             <button class="g" onclick="V.fin_dash()">${ICONS.search} Refresh</button>
           </div>
           <p class="mu" style="margin-bottom:14px;">Real-time trading performance computed securely on the backend server.</p>
@@ -3805,7 +3805,7 @@
               <span class="user-badge" style="background:var(--ac-light);color:var(--ac);font-weight:700;">Admin &amp; Root Controls</span>
             </div>
             <p class="mu" style="margin-bottom:16px;font-size:13px;">
-              Configure hospital credentials, VAT % for billing calculations, PAN, and receipt headers. Changes apply instantly.
+              Configure pharmacy credentials, VAT % for billing calculations, PAN, and receipt headers. Changes apply instantly.
             </p>
 
             <div class="row" style="gap:12px;flex-wrap:wrap;">
@@ -3833,8 +3833,9 @@
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_autoprint" ${g.auto_print ? 'checked' : ''} style="width:16px;height:16px;"><span>Auto-Print Receipts</span></label>
             </div>
             <p class="err" id="cfg_err" style="margin-top:10px;"></p>
-            <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
+            <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
               <button onclick="saveConfig()" style="font-weight:700;">${ICONS.save} Save System Configuration &amp; VAT</button>
+              <button class="g" onclick="downloadBackup()" style="font-weight:600;">💾 Export Full Backup (.JSON)</button>
               <span id="cfg_ok" style="display:none;color:#16a34a;font-weight:600;font-size:13px;">Saved successfully!</span>
             </div>
           </div>
@@ -4256,6 +4257,25 @@
       } catch (e) {
         if (err) err.textContent = e.message || 'Test email failed.';
         alert(e.message || 'Failed to send test email.');
+      }
+    }
+
+    async function downloadBackup() {
+      toast('Generating full system backup…');
+      try {
+        const data = await apiCall('/api/pharmacy/backup');
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `harion_pharmacy_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast('✅ Backup downloaded successfully!');
+      } catch (err) {
+        alert('Failed to download backup: ' + err.message);
       }
     }
 

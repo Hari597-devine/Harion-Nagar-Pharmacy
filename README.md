@@ -1,6 +1,6 @@
-# 🏥 HARION NAGAR HOSPITAL & PHARMACY INVENTORY — Management System
+# 🏥 HARION NAGAR PHARMACY INVENTORY — Management System
 
-Enterprise-grade Pharmacy Billing, Inventory Tracking, Graphical Analytics, and Accounts Ledger application designed specifically for **HARION NAGAR HOSPITAL & PHARMACY** (Harion-4, Sasapur, Sarlahi).
+Enterprise-grade Pharmacy Billing, Inventory Tracking, Graphical Analytics, and Accounts Ledger application designed specifically for **HARION NAGAR PHARMACY** (Harion-4, Sasapur, Sarlahi).
 
 ---
 
@@ -95,7 +95,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ---
 
 ## 📜 Business Logic & Regional Compliance
-- **Hospital Anchor**: HARION NAGAR HOSPITAL, Harion-4, Sasapur, Sarlahi (PAN: `609836604`).
+- **Pharmacy Location**: HARION NAGAR PHARMACY, Harion-4, Sasapur, Sarlahi (PAN: `609836604`).
 - **Calendar Engine**: Verified Bikram Sambat (BS) matrix for years 2082–2091 with `bs(t)` converter.
 - **Print Layout**: Precision A5 Landscape layout formatted for dot-matrix and thermal receipt printing.
 - **Currency In-Words**: Nepali/South Asian numbering denominations (**LAKH**, **CRORE**, and **PAISA**).

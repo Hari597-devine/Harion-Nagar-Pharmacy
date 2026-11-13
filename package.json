@@ -1,7 +1,7 @@
 {
   "name": "harion-nagar-pharmacy",
   "version": "2.0.0",
-  "description": "Enterprise Pharmacy Billing & Inventory System — HARION NAGAR HOSPITAL",
+  "description": "Enterprise Pharmacy Billing & Inventory System — HARION NAGAR PHARMACY",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

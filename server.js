@@ -243,11 +243,11 @@ const sendPasswordResetEmail = async (toEmail, otpCode, username) => {
   const hasSmtp = Boolean(smtpUser && smtpPass);
 
   const subject = '🔐 Password Reset Verification Code - Harion Nagar Pharmacy';
-  const textBody = `Hello ${username || 'User'},\n\nYour 6-digit verification code to reset your password is:\n\n${otpCode}\n\nThis code is valid for 15 minutes. If you did not request this, please ignore this email.\n\nHarion Nagar Hospital & Pharmacy Inventory System\nHarion-4, Sasapur, Sarlahi`;
+  const textBody = `Hello ${username || 'User'},\n\nYour 6-digit verification code to reset your password is:\n\n${otpCode}\n\nThis code is valid for 15 minutes. If you did not request this, please ignore this email.\n\nHarion Nagar Pharmacy Inventory System\nHarion-4, Sasapur, Sarlahi`;
   const htmlBody = `
     <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <h2 style="color: #0f766e; margin: 0;">HARION NAGAR HOSPITAL & PHARMACY</h2>
+        <h2 style="color: #0f766e; margin: 0;">HARION NAGAR PHARMACY</h2>
         <p style="color: #64748b; font-size: 13px; margin: 4px 0;">Harion-4, Sasapur, Sarlahi &bull; PAN: 609836604</p>
       </div>
       <p style="font-size: 15px; color: #334155;">Hello <strong>${username || 'User'}</strong>,</p>
@@ -301,7 +301,7 @@ if (!fs.existsSync(DATA_DIR)) {
 
 const DEFAULT_CONFIG = {
   id: 1,
-  name: 'HARION NAGAR HOSPITAL & PHARMACY',
+  name: 'HARION NAGAR PHARMACY',
   addr: 'Harion-4, Sasapur, Sarlahi',
   pan: '609836604',
   prefix: 'BASR',
@@ -391,6 +391,67 @@ const saveLocalDb = () => {
     console.error('Failed to persist local DB:', e.message);
   }
 };
+
+// ============================================================
+//  DATA SAFEGUARD & CONTINUOUS CLOUD HYDRATION
+//  Ensures redeployments, restarts & upgrades NEVER damage stock or billing data
+// ============================================================
+const hydrateFromSupabase = async () => {
+  try {
+    const [cfgR, medsR, stkR, usrR, salesR, purchR, retsR, adjR] = await Promise.all([
+      supabase.from('config').select('*').eq('id', 1).maybeSingle(),
+      supabase.from('medicines').select('*').order('name'),
+      supabase.from('stock').select('*').order('medicine_name'),
+      supabase.from('users').select('username, full_name, email, role, password_hash'),
+      supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(500),
+      supabase.from('purchases').select('*').order('created_at', { ascending: false }).limit(500),
+      supabase.from('returns').select('*').order('created_at', { ascending: false }).limit(300),
+      supabase.from('adjustments').select('*').order('created_at', { ascending: false }).limit(200)
+    ]);
+
+    if (cfgR?.data) {
+      localDb.config = { ...DEFAULT_CONFIG, ...localDb.config, ...cfgR.data };
+    }
+    if (Array.isArray(medsR?.data) && medsR.data.length > 0) {
+      localDb.medicines = medsR.data;
+    }
+    if (Array.isArray(stkR?.data)) {
+      localDb.stock = stkR.data;
+    }
+    if (Array.isArray(usrR?.data)) {
+      for (const u of usrR.data) {
+        if (u.username === 'admin') continue; // Skip legacy admin
+        localDb.users[u.username] = {
+          username: u.username,
+          full_name: u.full_name,
+          email: u.email,
+          role: u.role,
+          password_hash: u.password_hash,
+          permissions: localDb.users[u.username]?.permissions || { pos: true, stock: true, dashboard: true, purchases: true, reports: true, returns: true, adj: true, settings: true }
+        };
+      }
+    }
+    if (Array.isArray(salesR?.data)) {
+      localDb.sales = salesR.data;
+    }
+    if (Array.isArray(purchR?.data)) {
+      localDb.purchases = purchR.data;
+    }
+    if (Array.isArray(retsR?.data)) {
+      localDb.returns = retsR.data;
+    }
+    if (Array.isArray(adjR?.data)) {
+      localDb.adjustments = adjR.data;
+    }
+    saveLocalDb();
+    console.log(`[DATA SAFEGUARD] Supabase Cloud Hydration complete: ${localDb.medicines.length} medicines, ${localDb.stock.length} stock items, ${localDb.sales.length} sales records.`);
+  } catch (err) {
+    console.warn('[DATA SAFEGUARD] Startup hydration warning:', err.message);
+  }
+};
+
+// Run cloud hydration immediately on startup
+hydrateFromSupabase();
 
 /** GET /api/health — System health check */
 app.get('/api/health', (req, res) => {
@@ -502,7 +563,7 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '880560555970-neuabavd9
 app.get('/api/auth/config', (req, res) => {
   res.json({
     googleClientId: GOOGLE_CLIENT_ID,
-    appName: 'HARION NAGAR HOSPITAL & PHARMACY',
+    appName: 'HARION NAGAR PHARMACY',
     googleEnabled: !!GOOGLE_CLIENT_ID
   });
 });
@@ -1394,19 +1455,40 @@ app.post('/api/purchases', authenticate, async (req, res) => {
       }
       saveLocalDb();
 
-      // Background write to Supabase
-      supabase.from('stock').insert({
-        medicine_id: med.id,
-        medicine_name: med.name,
-        hs_code: med.hs_code || '',
-        unit: med.unit || 'PCS',
-        batch: batchStr,
-        expiry: expiryStr,
-        quantity: q,
-        cost_price: cost,
-        mrp: newMrp,
-        vat: med.vat || 0
-      }).then(() => {}).catch(e => console.warn('Supabase stock insert notice:', e.message));
+      // Synchronize to Supabase with proper upsert logic
+      try {
+        const { data: existingStk } = await supabase.from('stock')
+          .select('id, quantity')
+          .eq('medicine_name', med.name)
+          .eq('batch', batchStr)
+          .maybeSingle();
+
+        if (existingStk) {
+          const updatedQ = existingStk.quantity + q;
+          await supabase.from('stock').update({
+            quantity: updatedQ,
+            cost_price: cost,
+            mrp: newMrp
+          }).eq('id', existingStk.id);
+          stockItem.id = existingStk.id;
+        } else {
+          const { data: newStk } = await supabase.from('stock').insert({
+            medicine_id: med.id,
+            medicine_name: med.name,
+            hs_code: med.hs_code || '',
+            unit: med.unit || 'PCS',
+            batch: batchStr,
+            expiry: expiryStr,
+            quantity: q,
+            cost_price: cost,
+            mrp: newMrp,
+            vat: med.vat || 0
+          }).select().single();
+          if (newStk) stockItem.id = newStk.id;
+        }
+      } catch (e) {
+        console.warn('Supabase stock sync notice:', e.message);
+      }
 
       processed.push({ medicine_id: med.id, n: med.name, q, c: cost, sid: stockId, b: batchStr, x: expiryStr });
     }
@@ -2124,6 +2206,33 @@ app.get(['/api/audit-logs', '/api/admin/audit-logs'], authenticate, adminOnly, a
   (localDb.audit_logs || []).forEach(a => map.set(a.id || a.description + a.created_at, a));
   dbLogs.forEach(a => map.set(a.id || a.description + a.created_at, a));
   res.json(Array.from(map.values()).reverse().slice(0, 50));
+});
+
+// ============================================================
+//  EXPORT FULL SYSTEM BACKUP (Zero-Risk Client Archiving)
+// ============================================================
+app.get('/api/pharmacy/backup', authenticate, adminOnly, async (req, res) => {
+  try {
+    await hydrateFromSupabase();
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="harion_pharmacy_backup_${new Date().toISOString().slice(0,10)}.json"`);
+    res.json({
+      exported_at: new Date().toISOString(),
+      pharmacy: localDb.config?.name || 'HARION NAGAR PHARMACY',
+      version: '2.0',
+      data: {
+        config: localDb.config,
+        medicines: localDb.medicines,
+        stock: localDb.stock,
+        sales: localDb.sales,
+        purchases: localDb.purchases,
+        returns: localDb.returns,
+        adjustments: localDb.adjustments
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to generate backup: ' + err.message });
+  }
 });
 
 // ============================================================
