@@ -873,7 +873,11 @@
       search: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
       logout: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
       trash: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
-      save: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`
+      save: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
+      eye: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
+      eyeOff: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`,
+      lock: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+      calendar: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`
     };
 
     // Helper functions
@@ -928,7 +932,7 @@
     let P = { sup: '', no: '' };
     let MN = {};
     let FS = '';
-    let D1 = td(), D2 = td(), IU = 'all', V = {};
+    let D1 = td(), D2 = td(), IU = 'all';
     let isOffline = false;
 
     // Token Management
@@ -1146,6 +1150,10 @@
     }
 
     async function initialLoad() {
+      // Clear stale localStorage session tokens so new tabs/reopened tabs require credentials
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+
       const token = getToken();
       const savedUser = sessionStorage.getItem(USER_KEY);
       if (token && savedUser) {
@@ -1164,16 +1172,16 @@
     //  SECURE ADMIN LOGIN — IAM-compliant, all-browser compatible
     // ============================================================
     function login(k, m = '', sMsg = '') {
-      const activeUser = k || localStorage.getItem(USER_KEY) || '';
+      const activeUser = k || '';
 
       $('#app').innerHTML = `
-        <div class="card" style="max-width:380px;margin:10vh auto;padding:32px 28px;box-shadow:0 12px 40px -8px rgba(0,0,0,0.18);border-radius:18px;">
+        <div class="card" style="max-width:390px;margin:10vh auto;padding:32px 28px;box-shadow:0 12px 35px -8px rgba(15, 23, 42, 0.12);border-radius:18px;border:1px solid var(--bd);">
           <div style="text-align:center;margin-bottom:24px;">
-            <div style="display:inline-flex;padding:14px;background:var(--ac-light);color:var(--ac);border-radius:16px;margin-bottom:10px;">
+            <div style="display:inline-flex;padding:14px;background:var(--ac-light);color:var(--ac);border-radius:16px;margin-bottom:12px;">
               ${ICONS.box}
             </div>
-            <h2 style="font-size:19px;font-weight:800;letter-spacing:-0.02em;">${e(S.cfg.name)}</h2>
-            <p class="mu" style="font-size:12px;margin-top:3px;">Harion-4, Sasapur, Sarlahi &bull; Hospital &amp; Pharmacy</p>
+            <h2 style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:var(--tx);">${e(S.cfg.name)}</h2>
+            <p class="mu" style="font-size:12px;margin-top:4px;">Harion-4, Sasapur, Sarlahi &bull; Hospital &amp; Pharmacy</p>
           </div>
 
           <label class="f" style="margin-bottom:14px;">
@@ -1190,9 +1198,9 @@
                 onkeydown="if(event.key==='Enter')doSignIn()"
                 style="width:100%;padding-right:44px;">
               <button type="button" onclick="togglePwdVis('login_pwd','eye_icon')"
-                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:4px;line-height:1;"
+                style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:4px;display:flex;align-items:center;"
                 title="Show / Hide password" aria-label="Toggle password visibility">
-                <span id="eye_icon">👁</span>
+                <span id="eye_icon">${ICONS.eye}</span>
               </button>
             </div>
           </label>
@@ -1209,7 +1217,7 @@
           </button>
 
           <p style="text-align:center;font-size:11px;color:var(--mu);margin-top:18px;line-height:1.5;">
-            🔒 Secured with bcrypt &bull; Contact admin if locked out
+            🔒 Secured with cryptographic bcrypt &bull; Session ends on tab close
           </p>
         </div>`;
 
@@ -1225,8 +1233,13 @@
       const inp = document.getElementById(inputId);
       const ico = document.getElementById(iconId);
       if (!inp) return;
-      if (inp.type === 'password') { inp.type = 'text'; if (ico) ico.textContent = '🙈'; }
-      else { inp.type = 'password'; if (ico) ico.textContent = '👁'; }
+      if (inp.type === 'password') {
+        inp.type = 'text';
+        if (ico) ico.innerHTML = ICONS.eyeOff;
+      } else {
+        inp.type = 'password';
+        if (ico) ico.innerHTML = ICONS.eye;
+      }
       inp.focus();
     }
 
@@ -1251,9 +1264,9 @@
         setToken(res.token);
         sessionStorage.setItem(USER_KEY, res.user.username);
         U = res.user.username;
-        S.users[U] = { n: res.user.fullName || U, email: res.user.email || '', role: res.user.role || 'admin', has_password: true };
+        S.users[U] = { n: res.user.fullName || U, email: res.user.email || '', role: res.user.role || 'staff', has_password: true };
 
-        // If this is first login (no email registered), collect email before dashboard
+        // If this is first login (no verified recovery email), collect email
         if (res.needsEmail || !res.user.email || res.user.email.endsWith('@harionnagar.com')) {
           showEmailCollectionModal(U, () => {
             toast(`Welcome, ${res.user.fullName || U}!`);
@@ -1265,18 +1278,18 @@
         }
       } catch (err) {
         if (btn) { btn.disabled = false; btn.innerHTML = 'Sign In &rarr;'; }
+        // Generic error to prevent account enumeration
         login(u, 'Invalid username or password. Please try again.');
       }
     }
 
     function fetchAndRender() {
       render();
-      // Load fresh data in background after login
       apiCall('/api/pharmacy/state').then(st => {
         if (st.config) { S.cfg = { ...DC, ...st.config }; S.seq = st.config.seq || 1; S.rs = st.config.rs_counter || 1; }
         if (Array.isArray(st.medicines) && st.medicines.length) S.med = st.medicines.map(m => ({ id: m.id, n: m.name, u: m.unit, hs: m.hs_code, mrp: parseFloat(m.mrp) || 0, vat: parseFloat(m.vat) || 0 }));
         if (Array.isArray(st.stock) && st.stock.length) S.stock = st.stock.map(s => ({ id: s.id, mid: s.medicine_id, n: s.medicine_name, hs: s.hs_code, u: s.unit, b: s.batch, x: s.expiry, q: s.quantity, cost: parseFloat(s.cost_price) || 0, mrp: parseFloat(s.mrp) || 0, vat: parseFloat(s.vat) || 0 }));
-        if (Array.isArray(st.users) && st.users.length) st.users.forEach(u => { S.users[u.username] = { n: u.full_name, email: u.email || '', role: u.role, has_password: u.has_password }; });
+        if (Array.isArray(st.users) && st.users.length) st.users.forEach(u => { S.users[u.username] = { n: u.full_name, email: u.email || '', role: u.role, has_password: u.has_password, permissions: u.permissions }; });
         return apiCall('/api/sales');
       }).then(salesData => {
         if (Array.isArray(salesData) && salesData.length) S.sales = salesData.map(s => ({ no: s.bill_no, t: s.transaction_time || new Date(s.created_at).getTime(), u: s.username, cu: s.customer_name, pm: s.payment_mode, tot: parseFloat(s.grand_total) || 0, sub: parseFloat(s.subtotal) || 0, disc: parseFloat(s.discount) || 0, vat: parseFloat(s.tax) || 0, L: s.items || [] }));
@@ -1289,12 +1302,13 @@
       const modal = document.createElement('div');
       modal.className = 'ov';
       modal.innerHTML = `
-        <div class="card" style="max-width:380px;padding:28px;border-radius:16px;text-align:center;">
-          <div style="font-size:36px;margin-bottom:12px;">📧</div>
-          <h3 style="font-size:17px;font-weight:800;margin-bottom:6px;">Register Your Email</h3>
-          <p class="mu" style="font-size:13px;margin-bottom:20px;line-height:1.6;">
-            To enable <strong>password recovery</strong>, please register your Gmail address.
-            This will only be used to send a verification code if you forget your password.
+        <div class="card" style="max-width:390px;padding:28px;border-radius:16px;text-align:center;">
+          <div style="display:inline-flex;padding:12px;background:var(--ac-light);color:var(--ac);border-radius:14px;margin-bottom:12px;">
+            ${ICONS.settings}
+          </div>
+          <h3 style="font-size:17px;font-weight:700;margin-bottom:6px;justify-content:center;">Register Recovery Email</h3>
+          <p class="mu" style="font-size:13px;margin-bottom:18px;line-height:1.5;">
+            To ensure you can securely recover your account if you forget your password, please register your Gmail address.
           </p>
           <label class="f" style="margin-bottom:16px;text-align:left;">
             <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">Your Gmail Address</span>
@@ -1305,7 +1319,7 @@
             Save &amp; Continue to Dashboard &rarr;
           </button>
           <p style="margin-top:12px;font-size:11px;color:var(--mu);">
-            <a href="#" id="email_skip_link" style="color:var(--mu);text-decoration:underline;">Skip for now (not recommended)</a>
+            <a href="#" id="email_skip_link" style="color:var(--mu);text-decoration:underline;">Skip for this session</a>
           </p>
         </div>`;
       document.body.appendChild(modal);
@@ -1316,7 +1330,6 @@
       inp.focus();
 
       const finish = () => { modal.remove(); onDone(); };
-
       modal.querySelector('#email_skip_link').onclick = e => { e.preventDefault(); finish(); };
 
       saveBtn.onclick = async () => {
@@ -1332,7 +1345,7 @@
             body: JSON.stringify({ email: emailVal })
           });
           if (S.users[username]) S.users[username].email = emailVal;
-          toast('✅ Email registered! You can now reset your password by email.');
+          toast('✅ Recovery email registered successfully!');
           finish();
         } catch (e) {
           saveBtn.disabled = false; saveBtn.textContent = 'Save & Continue to Dashboard →';
@@ -1345,73 +1358,126 @@
       const modal = document.createElement('div');
       modal.className = 'ov';
       modal.innerHTML = `
-        <div class="card" style="max-width:380px;padding:28px;border-radius:16px;">
-          <h3 style="font-size:17px;font-weight:800;margin-bottom:4px;">🔑 Change Password</h3>
-          <p class="mu" style="font-size:12px;margin-bottom:18px;">Enter your username and set a new password.</p>
-
-          <label class="f" style="margin-bottom:12px;">
-            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">Username</span>
-            <input id="modal_u" type="text" value="${e(U || '')}" placeholder="Enter your username" autocomplete="username" style="margin-top:5px;">
-          </label>
-
-          <label class="f" style="margin-bottom:12px;">
-            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">New Password (min. 6 chars)</span>
-            <div style="position:relative;margin-top:5px;">
-              <input id="modal_p1" type="password" placeholder="Enter new password" autocomplete="new-password" style="width:100%;padding-right:44px;">
-              <button type="button" onclick="togglePwdVis('modal_p1','modal_eye1')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:4px;" title="Toggle visibility"><span id="modal_eye1">👁</span></button>
+        <div class="card" style="max-width:390px;padding:28px;border-radius:16px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <div style="display:inline-flex;padding:8px;background:var(--ac-light);color:var(--ac);border-radius:10px;">
+              ${ICONS.lock}
             </div>
-          </label>
+            <h3 style="font-size:17px;font-weight:700;margin:0;">Reset Forgotten Password</h3>
+          </div>
+          <p class="mu" style="font-size:12px;margin-bottom:18px;line-height:1.5;">
+            Enter your registered username or email address. We will verify your account and issue a secure 6-digit reset code.
+          </p>
 
-          <label class="f" style="margin-bottom:16px;">
-            <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">Confirm New Password</span>
-            <div style="position:relative;margin-top:5px;">
-              <input id="modal_p2" type="password" placeholder="Re-enter new password" autocomplete="new-password" style="width:100%;padding-right:44px;">
-              <button type="button" onclick="togglePwdVis('modal_p2','modal_eye2')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:4px;" title="Toggle visibility"><span id="modal_eye2">👁</span></button>
+          <div id="reset_step1">
+            <label class="f" style="margin-bottom:14px;">
+              <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">Username or Email</span>
+              <input id="reset_ident" type="text" value="${e(U || '')}" placeholder="e.g. ram or yourname@gmail.com" autocomplete="username" style="margin-top:5px;">
+            </label>
+            <p class="err" id="reset_err1" style="margin-bottom:12px;min-height:18px;"></p>
+            <div style="display:flex;gap:10px;">
+              <button id="reset_send_btn" style="flex:1;font-weight:700;">Send Verification Code &rarr;</button>
+              <button class="g" id="reset_close_btn1" style="flex:0 0 80px;">Cancel</button>
             </div>
-          </label>
+          </div>
 
-          <p class="err" id="modal_err" style="margin-bottom:12px;min-height:18px;"></p>
-          <div style="display:flex;gap:10px;">
-            <button id="modal_save_btn" style="flex:1;font-weight:700;">Save Password</button>
-            <button class="g" id="modal_close_btn" style="flex:1;">Cancel</button>
+          <div id="reset_step2" style="display:none;">
+            <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:10px;margin-bottom:14px;">
+              <p id="reset_code_notice" style="font-size:12px;color:#047857;margin:0;"></p>
+            </div>
+
+            <label class="f" style="margin-bottom:12px;">
+              <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">6-Digit Verification Code</span>
+              <input id="reset_code" type="text" maxlength="6" placeholder="e.g. 123456" style="margin-top:5px;font-family:var(--mono);font-size:16px;letter-spacing:3px;text-align:center;">
+            </label>
+
+            <label class="f" style="margin-bottom:12px;">
+              <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">New Password (min 6 characters)</span>
+              <div style="position:relative;margin-top:5px;">
+                <input id="reset_p1" type="password" placeholder="Enter new password" autocomplete="new-password" style="width:100%;padding-right:44px;">
+                <button type="button" onclick="togglePwdVis('reset_p1','reset_eye1')" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:4px;display:flex;align-items:center;" title="Toggle visibility"><span id="reset_eye1">${ICONS.eye}</span></button>
+              </div>
+            </label>
+
+            <label class="f" style="margin-bottom:14px;">
+              <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.05em;">Confirm New Password</span>
+              <div style="position:relative;margin-top:5px;">
+                <input id="reset_p2" type="password" placeholder="Re-enter new password" autocomplete="new-password" style="width:100%;padding-right:44px;">
+                <button type="button" onclick="togglePwdVis('reset_p2','reset_eye2')" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:4px;display:flex;align-items:center;" title="Toggle visibility"><span id="reset_eye2">${ICONS.eye}</span></button>
+              </div>
+            </label>
+
+            <p class="err" id="reset_err2" style="margin-bottom:12px;min-height:18px;"></p>
+            <div style="display:flex;gap:10px;">
+              <button id="reset_submit_btn" style="flex:1;font-weight:700;">Set Password &amp; Sign In</button>
+              <button class="g" id="reset_close_btn2" style="flex:0 0 80px;">Cancel</button>
+            </div>
           </div>
         </div>
       `;
       document.body.appendChild(modal);
-      const p1 = modal.querySelector('#modal_p1');
-      const p2 = modal.querySelector('#modal_p2');
-      const err = modal.querySelector('#modal_err');
-      modal.querySelector('#modal_u').focus();
 
-      modal.querySelector('#modal_close_btn').onclick = () => modal.remove();
-      modal.querySelector('#modal_save_btn').onclick = async () => {
-        const uVal = modal.querySelector('#modal_u').value.trim();
-        if (!uVal) { err.textContent = 'Please enter your username.'; return; }
-        if (!p1.value || p1.value.length < 6) {
-          err.textContent = 'Password must be at least 6 characters.';
-          return;
-        }
-        if (p1.value !== p2.value) {
-          err.textContent = 'Passwords do not match.';
-          return;
-        }
-        const saveBtn = modal.querySelector('#modal_save_btn');
-        saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+      const identInp = modal.querySelector('#reset_ident');
+      const err1 = modal.querySelector('#reset_err1');
+      const err2 = modal.querySelector('#reset_err2');
+      const sendBtn = modal.querySelector('#reset_send_btn');
+      const submitBtn = modal.querySelector('#reset_submit_btn');
+      const step1 = modal.querySelector('#reset_step1');
+      const step2 = modal.querySelector('#reset_step2');
+      const notice = modal.querySelector('#reset_code_notice');
+
+      identInp.focus();
+      modal.querySelector('#reset_close_btn1').onclick = () => modal.remove();
+      modal.querySelector('#reset_close_btn2').onclick = () => modal.remove();
+
+      let targetIdentifier = '';
+
+      sendBtn.onclick = async () => {
+        const val = identInp.value.trim();
+        if (!val) { err1.textContent = 'Please enter your username or registered email.'; return; }
+        sendBtn.disabled = true; sendBtn.textContent = 'Verifying account…';
+        err1.textContent = '';
         try {
-          const res = await apiCall('/api/auth/set-password', {
+          const res = await apiCall('/api/auth/forgot-password', {
             method: 'POST',
-            body: JSON.stringify({ username: uVal, password: p1.value })
+            body: JSON.stringify({ identifier: val })
+          });
+          targetIdentifier = val;
+          step1.style.display = 'none';
+          step2.style.display = 'block';
+          notice.textContent = res.message || 'Verification code dispatched to your registered address.';
+          if (res.reset_token_preview) {
+            notice.innerHTML = `<strong>Verification Code:</strong> <span class="mono" style="font-size:15px;letter-spacing:2px;font-weight:700;">${e(res.reset_token_preview)}</span>`;
+          }
+          modal.querySelector('#reset_code').focus();
+        } catch (e) {
+          sendBtn.disabled = false; sendBtn.textContent = 'Send Verification Code →';
+          err1.textContent = e.message || 'Account not found. Check username or contact administrator.';
+        }
+      };
+
+      submitBtn.onclick = async () => {
+        const code = modal.querySelector('#reset_code').value.trim();
+        const p1 = modal.querySelector('#reset_p1').value;
+        const p2 = modal.querySelector('#reset_p2').value;
+
+        if (!code || code.length < 4) { err2.textContent = 'Please enter the 6-digit verification code.'; return; }
+        if (!p1 || p1.length < 6) { err2.textContent = 'Password must be at least 6 characters.'; return; }
+        if (p1 !== p2) { err2.textContent = 'Passwords do not match.'; return; }
+
+        submitBtn.disabled = true; submitBtn.textContent = 'Updating password…';
+        err2.textContent = '';
+        try {
+          await apiCall('/api/auth/reset-password', {
+            method: 'POST',
+            body: JSON.stringify({ identifier: targetIdentifier, token: code, new_password: p1 })
           });
           modal.remove();
-          toast('✅ Password changed successfully!');
-          if (res.token) {
-            setToken(res.token);
-            U = res.user.username;
-            render();
-          }
+          toast('✅ Password updated successfully! Please sign in with your new password.');
+          login(targetIdentifier, '', 'Password updated successfully! Please sign in.');
         } catch (e) {
-          saveBtn.disabled = false; saveBtn.textContent = 'Save Password';
-          err.textContent = e.message || 'Failed to update password.';
+          submitBtn.disabled = false; submitBtn.textContent = 'Set Password & Sign In';
+          err2.textContent = e.message || 'Invalid or expired verification code.';
         }
       };
     }
@@ -1461,40 +1527,192 @@
     }
 
     // ============================================================
-    //  TAB NAVIGATION & CORE LAYOUT
+    //  POLYMORPHIC COMPONENT ARCHITECTURE (Polymorphism Rule)
     // ============================================================
-    const TABS = () => {
-      const uData = S.users[U] || {};
-      const isAdmin = (uData.role === 'admin') || (U === 'admin') || (U === 'rd');
-      const perms = uData.permissions || {};
 
-      const tabs = [];
-      if (isAdmin || perms.pos !== false) tabs.push(['sales', `${ICONS.cart} Sales`]);
-      if (isAdmin || perms.purchases !== false) tabs.push(['entry', `${ICONS.box} Stock Entry`]);
-      if (isAdmin || perms.stock !== false) tabs.push(['stock', `${ICONS.layers} Stock`]);
-      if (isAdmin || perms.dashboard !== false) tabs.push(['inv_dash', `${ICONS.chart} Graphical Dashboard`]);
-      if ((S.cfg.returns || S.cfg.returns_enabled) && (isAdmin || perms.returns !== false)) tabs.push(['ret', `${ICONS.undo} Returns`]);
-      if (isAdmin || perms.adj !== false) tabs.push(['adj', `${ICONS.sliders} Adjustment`]);
-      if (isAdmin || perms.income !== false) tabs.push(['inc', `${ICONS.dollar} Income`]);
-      if (isAdmin) {
-        tabs.push(['fin_dash', `${ICONS.ledger} Financial Ledger`]);
-        tabs.push(['txn', `${ICONS.list} Transactions`]);
-        tabs.push(['cust', `${ICONS.settings} Customize`]);
+    // Abstract Base Module for all view components
+    class BaseViewModule {
+      constructor(id, title, icon, options = {}) {
+        this.id = id;
+        this.title = title;
+        this.icon = icon;
+        this.minRole = options.minRole || 'staff';
+        this.permissionKey = options.permissionKey || null;
       }
-      return tabs;
+
+      isAuthorized(user) {
+        if (!user) return false;
+        const isRootOrAdmin = (user.role === 'admin') || (user.username === 'admin') || (user.username === 'rd');
+        if (this.minRole === 'admin' && !isRootOrAdmin) return false;
+        if (this.permissionKey && !isRootOrAdmin) {
+          if (user.permissions && user.permissions[this.permissionKey] === false) return false;
+        }
+        return true;
+      }
+
+      async render(container) {
+        throw new Error(`render() must be implemented by concrete subclass ${this.constructor.name}`);
+      }
+    }
+
+    class SalesPOSModule extends BaseViewModule {
+      constructor() { super('sales', 'Sales', ICONS.cart, { minRole: 'staff', permissionKey: 'pos' }); }
+      async render(container) { renderSalesView(container); }
+    }
+
+    class StockEntryModule extends BaseViewModule {
+      constructor() { super('entry', 'Stock Entry', ICONS.box, { minRole: 'staff', permissionKey: 'purchases' }); }
+      async render(container) { renderStockEntryView(container); }
+    }
+
+    class InventoryStockModule extends BaseViewModule {
+      constructor() { super('stock', 'Stock', ICONS.layers, { minRole: 'staff', permissionKey: 'stock' }); }
+      async render(container) { renderStockView(container); }
+    }
+
+    class GraphicalDashboardModule extends BaseViewModule {
+      constructor() { super('inv_dash', 'Graphical Dashboard', ICONS.chart, { minRole: 'staff', permissionKey: 'dashboard' }); }
+      async render(container) { renderGraphicalDashboardView(container); }
+    }
+
+    class ReturnsRefundModule extends BaseViewModule {
+      constructor() { super('ret', 'Returns', ICONS.undo, { minRole: 'staff', permissionKey: 'returns' }); }
+      isAuthorized(user) {
+        if (!super.isAuthorized(user)) return false;
+        return !!(S.cfg.returns || S.cfg.returns_enabled);
+      }
+      async render(container) { renderReturnsView(container); }
+    }
+
+    class StockAdjustmentModule extends BaseViewModule {
+      constructor() { super('adj', 'Adjustment', ICONS.sliders, { minRole: 'staff', permissionKey: 'adj' }); }
+      async render(container) { renderAdjustmentView(container); }
+    }
+
+    class IncomeExpenseModule extends BaseViewModule {
+      constructor() { super('inc', 'Income', ICONS.dollar, { minRole: 'staff', permissionKey: 'income' }); }
+      async render(container) { renderIncomeView(container); }
+    }
+
+    class FinancialLedgerModule extends BaseViewModule {
+      constructor() { super('fin_dash', 'Financial Ledger', ICONS.ledger, { minRole: 'admin' }); }
+      async render(container) { renderLedgerView(container); }
+    }
+
+    class TransactionHistoryModule extends BaseViewModule {
+      constructor() { super('txn', 'Transactions', ICONS.list, { minRole: 'admin' }); }
+      async render(container) { renderTransactionsView(container); }
+    }
+
+    class SystemCustomizationModule extends BaseViewModule {
+      constructor() { super('cust', 'Customize', ICONS.settings, { minRole: 'admin' }); }
+      async render(container) { renderCustomizeView(container); }
+    }
+
+    class AccessRestrictedModule extends BaseViewModule {
+      constructor() { super('restricted', 'Access Restricted', ICONS.lock, { minRole: 'staff' }); }
+      async render(container) {
+        if (!container) return;
+        container.innerHTML = `
+          <div class="card" style="text-align:center;padding:48px 20px;max-width:440px;margin:40px auto;">
+            <div style="display:inline-flex;padding:16px;background:var(--er-bg);color:var(--er);border-radius:50%;margin-bottom:16px;">
+              ${ICONS.lock}
+            </div>
+            <h3 style="justify-content:center;margin-bottom:8px;">Access Restricted (403)</h3>
+            <p class="mu" style="font-size:13px;line-height:1.6;margin-bottom:20px;">
+              Your staff account does not have permission to access this module. Please contact the administrator.
+            </p>
+            <button onclick="go('sales')" style="padding:8px 20px;">&larr; Return to Sales POS</button>
+          </div>`;
+      }
+    }
+
+    // View Registry for polymorphic dispatch
+    class ViewRegistry {
+      constructor() {
+        this.modules = new Map();
+      }
+      register(module) {
+        this.modules.set(module.id, module);
+      }
+      get(id) {
+        return this.modules.get(id);
+      }
+      getAll() {
+        return Array.from(this.modules.values());
+      }
+      getAuthorized(user) {
+        return this.getAll().filter(m => m.isAuthorized(user));
+      }
+    }
+
+    const viewRegistry = new ViewRegistry();
+    viewRegistry.register(new SalesPOSModule());
+    viewRegistry.register(new StockEntryModule());
+    viewRegistry.register(new InventoryStockModule());
+    viewRegistry.register(new GraphicalDashboardModule());
+    viewRegistry.register(new ReturnsRefundModule());
+    viewRegistry.register(new StockAdjustmentModule());
+    viewRegistry.register(new IncomeExpenseModule());
+    viewRegistry.register(new FinancialLedgerModule());
+    viewRegistry.register(new TransactionHistoryModule());
+    viewRegistry.register(new SystemCustomizationModule());
+
+    // Polymorphic proxy for existing V.<tab>() callers
+    const V = new Proxy({}, {
+      get(target, prop) {
+        return async (...args) => {
+          const mod = viewRegistry.get(prop);
+          const container = document.getElementById('pg');
+          if (mod && container) {
+            return mod.render(container, ...args);
+          }
+        };
+      },
+      set(target, prop, val) {
+        target[prop] = val;
+        return true;
+      }
+    });
+
+    const TABS = () => {
+      const currentUser = S.users[U] ? { ...S.users[U], username: U } : { username: U, role: 'staff' };
+      return viewRegistry.getAuthorized(currentUser).map(m => [m.id, `${m.icon} ${e(m.title)}`]);
     };
 
     async function go(t) {
-      if (((t == 'adj' && S.cfg.adjPw) || t == 'cust' || t == 'fin_dash') && S.users[U]?.role == 'admin') {
-        // Optional quick prompt
+      const currentUser = S.users[U] ? { ...S.users[U], username: U } : { username: U, role: 'staff' };
+      const targetModule = viewRegistry.get(t);
+      if (!targetModule || !targetModule.isAuthorized(currentUser)) {
+        toast('Access restricted to this module.');
+        return;
+      }
+      if (t === 'adj' && S.cfg.adjPw && currentUser.role === 'admin') {
+        if (!await ask()) return;
       }
       tab = t;
       render();
     }
 
+    
+    const renderSalesView = (container) => { V.sales = V.sales || (() => {}); if (typeof _realSalesView === 'function') _realSalesView(container); };
+    const renderStockEntryView = (container) => { if (typeof _realEntryView === 'function') _realEntryView(container); };
+    const renderStockView = (container) => { if (typeof _realStockView === 'function') _realStockView(container); };
+    const renderGraphicalDashboardView = (container) => { if (typeof _realDashView === 'function') _realDashView(container); };
+    const renderReturnsView = (container) => { if (typeof _realReturnsView === 'function') _realReturnsView(container); };
+    const renderAdjustmentView = (container) => { if (typeof _realAdjView === 'function') _realAdjView(container); };
+    const renderIncomeView = (container) => { if (typeof _realIncView === 'function') _realIncView(container); };
+    const renderLedgerView = (container) => { if (typeof _realLedgerView === 'function') _realLedgerView(container); };
+    const renderTransactionsView = (container) => { if (typeof _realTxnView === 'function') _realTxnView(container); };
+    const renderCustomizeView = (container) => { if (typeof _realCustView === 'function') _realCustView(container); };
+
     function render() {
-      if (!TABS().some(t => t[0] == tab)) tab = 'sales';
-      const currentUser = S.users[U] || { n: U, role: 'staff' };
+      const currentUser = S.users[U] ? { ...S.users[U], username: U } : { username: U, role: 'staff' };
+      const authorizedModules = viewRegistry.getAuthorized(currentUser);
+
+      if (!authorizedModules.some(m => m.id === tab)) {
+        tab = authorizedModules[0]?.id || 'sales';
+      }
 
       $('#app').innerHTML = `
         <header>
@@ -1503,7 +1721,7 @@
             <span>${e(S.cfg.name)}</span>
           </div>
           <div class="header-user">
-            <span>${e(currentUser.n)}</span>
+            <span>${e(currentUser.n || currentUser.username)}</span>
             <span class="user-badge">${e(currentUser.role)}</span>
             <button class="g" style="color:#fff;border-color:rgba(255,255,255,0.3);padding:4px 8px;" onclick="logout()" title="Logout">
               ${ICONS.logout}
@@ -1511,11 +1729,17 @@
           </div>
         </header>
         <nav>
-          ${TABS().map(([k, n]) => `<button class="${k == tab ? 'on' : ''}" onclick="go('${k}')">${n}</button>`).join('')}
+          ${authorizedModules.map(m => `<button class="${m.id === tab ? 'on' : ''}" onclick="go('${m.id}')">${m.icon} ${e(m.title)}</button>`).join('')}
         </nav>
         <main><div id="pg"></div></main>`;
 
-      if (V[tab]) V[tab]();
+      const activeModule = viewRegistry.get(tab);
+      const container = document.getElementById('pg');
+      if (activeModule && activeModule.isAuthorized(currentUser)) {
+        activeModule.render(container);
+      } else {
+        new AccessRestrictedModule().render(container);
+      }
     }
 
     const calc = (ls, disc = 0) => {
@@ -1579,7 +1803,7 @@
       if (el) el.innerHTML = `Total <span class="mono">Rs. ${f(t.sub)}</span> · Discount <span class="mono">Rs. ${f(t.disc)}</span> · <b>Net Amount <span class="mono">Rs. ${f(t.tot)}</span></b>`;
     }
 
-    V.sales = () => {
+    const _realSalesView = (container) => {
       const op = [...new Set(S.stock.filter(s => s.q > 0).map(s => s.n))].map(n => `<option value="${e(n)}">`).join('');
       const fi = (k, ph) => `<input placeholder="${ph}" value="${e(SF[k] || '')}" oninput="SF.${k}=this.value">`;
 
@@ -1838,7 +2062,7 @@
     // ============================================================
     //  TAB: STOCK ENTRY (Add New Medicines & Purchases)
     // ============================================================
-    V.entry = () => {
+    const _realEntryView = (container) => {
       const mi = (k, ph, t = 'text') => `<input placeholder="${ph}" type="${t}" value="${e(MN[k] ?? '')}" oninput="MN.${k}=this.value">`;
       $('#pg').innerHTML = `
         <div class="card">
@@ -1986,7 +2210,7 @@
     // ============================================================
     //  TAB: STOCK (Live Inventory View)
     // ============================================================
-    V.stock = () => {
+    const _realStockView = (container) => {
       $('#pg').innerHTML = `
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -2041,7 +2265,7 @@
     let invFilterType = 'all';
     let dashActiveTab = 'all'; // 'all', 'stock', 'sales', 'table'
 
-    V.inv_dash = async () => {
+    const _realDashView = async (container) => {
       $('#pg').innerHTML = `
         <div class="card" style="margin-bottom:12px;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
@@ -2558,7 +2782,7 @@
     // ============================================================
     //  NEW TAB: ADMIN FINANCIAL LEDGER (Server-Computed Dashboard)
     // ============================================================
-    V.fin_dash = async () => {
+    const _realLedgerView = async (container) => {
       if (S.users[U]?.role !== 'admin') {
         $('#pg').innerHTML = `<div class="card"><p class="err">Access Denied: Admin role required for financial ledger access.</p></div>`;
         return;
@@ -2668,7 +2892,7 @@
       if (el) el.innerHTML = 'Refund Amount: <b class="mono">Rs. ' + f(calc(RL()).tot) + '</b>';
     }
 
-    V.ret = async () => {
+    const _realReturnsView = async (container) => {
       const op = S.stock.filter(s => sold(s.id) > 0).map(s => `<option value="${e(rlbl(s))}">`).join('');
       const a = new Date(RD1 + 'T00:00:00').getTime(), z = new Date(RD2 + 'T23:59:59').getTime();
       const L = S.rets.map((b, i) => ({ b, i })).filter(({ b }) => b.t >= a && b.t <= z).reverse();
@@ -2792,7 +3016,7 @@
     // ============================================================
     //  TAB: ADJUSTMENT (Stock Damage / Loss Audit)
     // ============================================================
-    V.adj = () => {
+    const _realAdjView = (container) => {
       $('#pg').innerHTML = `
         <div class="card">
           <h3>${ICONS.sliders} Stock Adjustment & Damage Audit</h3>
@@ -2869,7 +3093,7 @@
     // ============================================================
     //  TAB: INCOME STATEMENT
     // ============================================================
-    V.inc = () => {
+    const _realIncView = (container) => {
       const adm = S.users[U]?.role == 'admin';
       const a = new Date(D1 + 'T00:00:00').getTime(), z = new Date(D2 + 'T23:59:59').getTime();
       const ev = [];
@@ -2935,7 +3159,7 @@
     let TT = 'sales', TQ = '';
     const stk = (sid, d) => { const s = S.stock.find(x => x.id == sid); if (s) s.q = Math.max(0, s.q + d); };
 
-    V.txn = () => {
+    const _realTxnView = (container) => {
       $('#pg').innerHTML = `
         <div class="card">
           <h3>${ICONS.list} Master Transaction Ledger (Admin Audit)</h3>
@@ -3007,354 +3231,39 @@
     // ============================================================
     //  TAB: CUSTOMIZE (Admin System Configuration)
     // ============================================================
-    const HELP = [
-      'set name &lt;text&gt;',
-      'set address &lt;text&gt;',
-      'set pan &lt;number&gt;',
-      'set prefix &lt;text&gt; (e.g. BASR)',
-      'set invoice number &lt;n&gt;',
-      'set footer1 &lt;text&gt; / set footer2 &lt;text&gt;',
-      'set vat &lt;percent&gt;',
-      'set expiry &lt;days&gt;',
-      'set low &lt;number&gt;',
-      'set color #0f766e',
-      'enable autoprint / disable autoprint',
-      'enable returns / disable returns',
-      'enable discount / disable discount',
-      'adjustment password on / off',
-      'reset password &lt;username&gt;'
-    ];
-
-    async function run(c) {
-      let o; const g = S.cfg; c = c.trim();
-      const updates = {};
-
-      if (o = c.match(/^set name (.+)$/i)) { updates.name = o[1]; }
-      else if (o = c.match(/^set address (.+)$/i)) { updates.addr = o[1]; }
-      else if (o = c.match(/^set pan (\d+)$/i)) { updates.pan = o[1]; }
-      else if (o = c.match(/^set prefix (\w{1,8})$/i)) { updates.prefix = o[1].toUpperCase(); }
-      else if (o = c.match(/^set invoice number (\d+)$/i)) { updates.seq = +o[1]; }
-      else if (o = c.match(/^set footer([12]) (.+)$/i)) { updates['footer' + o[1]] = o[2]; }
-      else if ((o = c.match(/^set vat (\d+(\.\d+)?)$/i)) && +o[1] <= 100) { updates.vat = +o[1]; }
-      else if (o = c.match(/^set low (\d{1,5})$/i)) { updates.low_stock_level = +o[1]; }
-      else if (o = c.match(/^set color (#[0-9a-f]{6})$/i)) { updates.accent = o[1]; }
-      else if (o = c.match(/^(enable|disable) autoprint$/i)) { updates.auto_print = o[1].toLowerCase() == 'enable'; }
-      else if (o = c.match(/^set expiry (\d{1,4})$/i)) { updates.expiry_days = +o[1]; }
-      else if (o = c.match(/^(enable|disable) (returns|discount)$/i)) {
-        const key = o[2].toLowerCase() == 'returns' ? 'returns_enabled' : 'discount_enabled';
-        updates[key] = o[1].toLowerCase() == 'enable';
-      }
-      else if (o = c.match(/^adjustment password (on|off)$/i)) { updates.adj_password = o[1].toLowerCase() == 'on'; }
-      else if (o = c.match(/^reset password (\S+)$/i)) {
-        const u = o[1].toLowerCase();
-        await apiCall('/api/users/reset-password', { method: 'POST', body: JSON.stringify({ username: u }) });
-        if (S.users[u]) S.users[u].has_password = false;
-        return `Password cleared for user: ${u}. User will set new password upon next login.`;
-      } else {
-        return null;
-      }
-
+    async function loadAuditLogs() {
+      const container = document.getElementById('audit_log_container');
+      if (!container) return;
       try {
-        await apiCall('/api/config', { method: 'PUT', body: JSON.stringify(updates) });
-        await initialLoad();
-      } catch (e) {
-        Object.assign(g, updates);
-        saveLocalCache();
-      }
-      return 'Configuration updated successfully.';
-    }
-
-    V.cust = () => {
-      const g = S.cfg;
-      const isAdmin = (S.users[U]?.role === 'admin') || (U === 'admin') || (U === 'rd');
-
-      $('#pg').innerHTML = `
-        <!-- 1. System Configuration & VAT -->
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-            <h3 style="margin:0;">${ICONS.settings} Pharmacy Configuration &amp; VAT Rate</h3>
-            <span class="user-badge" style="background:var(--ac-light);color:var(--ac);font-weight:700;">Admin &amp; Root Controls</span>
-          </div>
-          <p class="mu" style="margin-bottom:16px;">
-            Set your hospital VAT % for automated bill calculation, official PAN, and receipt headers. Changes apply instantly.
-          </p>
-
-          <div class="row" style="gap:12px;flex-wrap:wrap;">
-            <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Pharmacy Name</span><input id="cfg_name" value="${e(g.name)}" style="margin-top:4px;"></label>
-            <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Address</span><input id="cfg_addr" value="${e(g.addr)}" style="margin-top:4px;"></label>
-          </div>
-          <div class="row" style="gap:12px;flex-wrap:wrap;margin-top:8px;">
-            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">PAN Number</span><input id="cfg_pan" value="${e(g.pan)}" style="margin-top:4px;width:120px;"></label>
-            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Bill Prefix</span><input id="cfg_prefix" value="${e(g.prefix)}" style="margin-top:4px;width:100px;"></label>
-            <label class="f" style="background:#f0fdfa;padding:6px 12px;border:1px solid #99f6e4;border-radius:8px;">
-              <span style="font-size:12px;font-weight:700;color:var(--ac);text-transform:uppercase;">⭐ System VAT %</span>
-              <input id="cfg_vat" type="number" min="0" max="100" step="0.01" value="${g.vat || 0}" style="margin-top:4px;width:90px;font-weight:bold;color:var(--ac);">
-            </label>
-            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Low Stock Alert</span><input id="cfg_low" type="number" min="1" value="${g.low_stock_level || g.low || 10}" style="margin-top:4px;width:90px;"></label>
-            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Expiry Alert (days)</span><input id="cfg_expiry" type="number" min="1" value="${g.expiry_days || g.expiry || 90}" style="margin-top:4px;width:90px;"></label>
-          </div>
-          <div class="row" style="gap:12px;flex-wrap:wrap;margin-top:8px;">
-            <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Receipt Footer 1</span><input id="cfg_f1" value="${e(g.footer1 || '')}" style="margin-top:4px;"></label>
-            <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Receipt Footer 2</span><input id="cfg_f2" value="${e(g.footer2 || '')}" style="margin-top:4px;"></label>
-          </div>
-          <div class="row" style="gap:16px;align-items:center;flex-wrap:wrap;margin-top:10px;">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_returns" ${g.returns_enabled ? 'checked' : ''} style="width:16px;height:16px;"><span>Enable Returns</span></label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_discount" ${g.discount_enabled ? 'checked' : ''} style="width:16px;height:16px;"><span>Enable Bill Discount</span></label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_adjpw" ${g.adj_password ? 'checked' : ''} style="width:16px;height:16px;"><span>Adjustment Password Gate</span></label>
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="cfg_autoprint" ${g.auto_print ? 'checked' : ''} style="width:16px;height:16px;"><span>Auto-Print Receipts</span></label>
-          </div>
-          <p class="err" id="cfg_err" style="margin-top:10px;"></p>
-          <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
-            <button onclick="saveConfig()" style="font-weight:700;">${ICONS.save} Save System Configuration &amp; VAT</button>
-            <span id="cfg_ok" style="display:none;color:var(--ok);font-weight:600;">✓ Saved Successfully!</span>
-          </div>
-        </div>
-
-        <!-- 2. Online Payment QR Code -->
-        <div class="card">
-          <h3>📱 Online Payment QR Code (Fonepay / eSewa / Khalti)</h3>
-          <p class="mu" style="margin-bottom:14px;">
-            Provide a QR code image link to receive digital payments from patients at billing POS.
-          </p>
-          <div class="row" style="gap:12px;flex-wrap:wrap;">
-            <label class="f w">
-              <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">QR Image Direct URL</span>
-              <input id="cfg_qr_url" value="${e(g.payment_qr_url || '')}" placeholder="https://example.com/my-fonepay-qr.png" style="margin-top:4px;">
-            </label>
-            <label class="f">
-              <span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Payment Label</span>
-              <input id="cfg_qr_label" value="${e(g.payment_qr_label || 'Scan to Pay via Fonepay / eSewa')}" placeholder="Fonepay / eSewa" style="margin-top:4px;width:240px;">
-            </label>
-          </div>
-          ${g.payment_qr_url ? `
-            <div style="margin:12px 0;display:flex;align-items:center;gap:16px;">
-              <img src="${e(g.payment_qr_url)}" alt="QR Preview" style="width:110px;height:110px;border:2px solid var(--bd);border-radius:10px;object-fit:contain;background:#fff;padding:4px;">
-              <span class="mu" style="font-size:12px;">Active QR code preview. This QR is shown automatically when cashier selects 'Online' payment mode.</span>
-            </div>` : ''}
-          <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
-            <button onclick="saveQR()" style="font-weight:700;">${ICONS.save} Save Payment QR Code</button>
-            <span id="qr_ok" style="display:none;color:var(--ok);font-weight:600;">✓ Payment QR Saved!</span>
-          </div>
-        </div>
-
-        <!-- 3. User Role & Granular Dashboard Access Permissions -->
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-            <h3 style="margin:0;">${ICONS.lock} User Access &amp; Dashboard Permission Controls</h3>
-            <span class="mu" style="font-size:12px;">Admin &amp; Root can grant or restrict access per staff account</span>
-          </div>
-          <div style="overflow-x:auto;">
-            <table>
-              <tr>
-                <th>Username</th><th>Full Name</th><th>Recovery Email</th><th>System Role</th>
-                <th style="text-align:center;">Sales POS</th>
-                <th style="text-align:center;">Stock View</th>
-                <th style="text-align:center;">Graphical Dashboard</th>
-                <th style="text-align:center;">Stock Entry</th>
-                <th>Actions</th>
-              </tr>
-              ${Object.entries(S.users).map(([u, d]) => {
-        const isRoot = u === 'admin';
-        const dis = isRoot ? 'disabled' : '';
-        const perm = d.permissions || {};
-        return `<tr>
-                  <td class="mono"><b>${e(u)}</b>${isRoot ? ' 👑' : ''}</td>
-                  <td>${e(d.n)}</td>
-                  <td style="font-size:11px;">${e(d.email || '—')}</td>
-                  <td>
-                    <select id="role_${u}" ${dis} style="font-size:12px;padding:3px 6px;border-radius:4px;">
-                      <option value="staff" ${d.role === 'staff' ? 'selected' : ''}>Staff</option>
-                      <option value="admin" ${d.role === 'admin' ? 'selected' : ''}>Admin</option>
-                    </select>
-                  </td>
-                  <td style="text-align:center;"><input type="checkbox" id="perm_pos_${u}" ${perm.pos !== false ? 'checked' : ''} ${dis}></td>
-                  <td style="text-align:center;"><input type="checkbox" id="perm_stock_${u}" ${perm.stock !== false ? 'checked' : ''} ${dis}></td>
-                  <td style="text-align:center;"><input type="checkbox" id="perm_dash_${u}" ${perm.dashboard !== false ? 'checked' : ''} ${dis}></td>
-                  <td style="text-align:center;"><input type="checkbox" id="perm_purch_${u}" ${perm.purchases !== false ? 'checked' : ''} ${dis}></td>
-                  <td>
-                    ${!isRoot ? `
-                      <button class="g" style="padding:3px 10px;font-size:11px;font-weight:600;" onclick="saveUserRole('${u}')">Save</button>
-                      <button class="g" style="padding:3px 8px;font-size:11px;margin-left:4px;" onclick="resetUserPw('${u}')">Reset Pwd</button>
-                    ` : '<span class="mu" style="font-size:11px;">Root Owner</span>'}
-                  </td>
-                </tr>`;
-      }).join('')}
-            </table>
-          </div>
-        </div>
-
-        <!-- 4. Add New Staff / Admin Account -->
-        <div class="card">
-          <h3>${ICONS.plus} Register New Staff or Admin Account</h3>
-          <div class="row" style="gap:12px;flex-wrap:wrap;">
-            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Username (ID)</span><input id="nu_u" placeholder="e.g. nurse1" style="margin-top:4px;"></label>
-            <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Full Name</span><input id="nu_n" placeholder="e.g. Sita Mahato" style="margin-top:4px;"></label>
-            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Role</span><select id="nu_r" style="margin-top:4px;"><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
-            <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Initial Password (Optional)</span><input id="nu_p" type="password" placeholder="Leave empty for prompt" style="margin-top:4px;"></label>
-            <button onclick="addNewUser()" style="align-self:flex-end;">${ICONS.plus} Create User</button>
-          </div>
-          <p class="err" id="nu_err" style="margin-top:8px;"></p>
-        </div>
-
-        <!-- 5. Advanced Commands & DB Snapshot -->
-        <div class="card">
-          <h3>${ICONS.box} Advanced Management &amp; Database State</h3>
-          <div class="row">
-            <input id="cm" class="w" placeholder="Type setting command (e.g. set vat 13, set low 5, help)..." onkeydown="if(event.key==='Enter')cmd()">
-            <button onclick="cmd()">${ICONS.save} Apply Command</button>
-          </div>
-          <p id="cr" class="mu" style="margin-top:6px;font-size:12px;">Type 'help' to view the parameter manual.</p>
-          <div style="margin-top:12px;">
-            <button class="g" onclick="document.getElementById('bk').value = JSON.stringify(S, null, 2)">View Full State JSON</button>
-            <textarea id="bk" rows="6" style="margin-top:8px;font-family:var(--mono);font-size:11px;width:100%;"></textarea>
-          </div>
-        </div>`;
-    };
-
-    async function saveConfig() {
-      const updates = {
-        name: document.getElementById('cfg_name')?.value.trim(),
-        addr: document.getElementById('cfg_addr')?.value.trim(),
-        pan: document.getElementById('cfg_pan')?.value.trim(),
-        prefix: (document.getElementById('cfg_prefix')?.value.trim() || '').toUpperCase(),
-        vat: parseFloat(document.getElementById('cfg_vat')?.value) || 0,
-        low_stock_level: parseInt(document.getElementById('cfg_low')?.value, 10) || 10,
-        expiry_days: parseInt(document.getElementById('cfg_expiry')?.value, 10) || 90,
-        footer1: document.getElementById('cfg_f1')?.value.trim(),
-        footer2: document.getElementById('cfg_f2')?.value.trim(),
-        returns_enabled: document.getElementById('cfg_returns')?.checked,
-        discount_enabled: document.getElementById('cfg_discount')?.checked,
-        adj_password: document.getElementById('cfg_adjpw')?.checked,
-        auto_print: document.getElementById('cfg_autoprint')?.checked
-      };
-      try {
-        const res = await apiCall('/api/pharmacy/config', {
-          method: 'POST',
-          body: JSON.stringify(updates)
-        });
-        S.cfg = { ...S.cfg, ...(res.config || updates) };
-        saveLocalCache();
-        const ok = document.getElementById('cfg_ok');
-        if (ok) { ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 3000); }
-        toast('✅ System configuration & VAT saved!');
-        V.cust();
-      } catch (err) {
-        const el = document.getElementById('cfg_err');
-        if (el) el.textContent = err.message || 'Save failed.';
-      }
-    }
-
-    async function saveQR() {
-      const url = document.getElementById('cfg_qr_url')?.value.trim() || '';
-      const label = document.getElementById('cfg_qr_label')?.value.trim() || 'Scan to Pay';
-      try {
-        await apiCall('/api/pharmacy/config', {
-          method: 'POST',
-          body: JSON.stringify({ payment_qr_url: url, payment_qr_label: label })
-        });
-        S.cfg.payment_qr_url = url;
-        S.cfg.payment_qr_label = label;
-        saveLocalCache();
-        const ok = document.getElementById('qr_ok');
-        if (ok) { ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 3000); }
-        toast('✅ Online payment QR code saved!');
-        V.cust();
-      } catch (err) {
-        toast(err.message || 'QR code save failed.');
-      }
-    }
-
-    async function saveUserRole(username) {
-      const roleEl = document.getElementById('role_' + username);
-      const role = roleEl?.value || 'staff';
-      const permissions = {
-        pos: document.getElementById('perm_pos_' + username)?.checked !== false,
-        stock: document.getElementById('perm_stock_' + username)?.checked !== false,
-        dashboard: document.getElementById('perm_dash_' + username)?.checked !== false,
-        purchases: document.getElementById('perm_purch_' + username)?.checked !== false
-      };
-      try {
-        await apiCall('/api/users/' + encodeURIComponent(username) + '/role', {
-          method: 'PATCH',
-          body: JSON.stringify({ role, permissions })
-        });
-        if (S.users[username]) {
-          S.users[username].role = role;
-          S.users[username].permissions = permissions;
+        const res = await apiCall('/api/audit-logs');
+        const logs = Array.isArray(res) ? res : (res.logs || S.log || []);
+        if (!logs.length) {
+          container.innerHTML = '<p class="mu" style="font-size:12px;text-align:center;padding:12px;">No administrative audit events recorded yet.</p>';
+          return;
         }
-        saveLocalCache();
-        toast('✅ Role & permissions updated for ' + username);
-        V.cust();
+        container.innerHTML = `
+          <table style="font-size:12px;">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${logs.slice(0, 30).map(l => `
+                <tr>
+                  <td class="mono" style="font-size:11px;">${new Date(l.created_at || l.t || Date.now()).toLocaleString()}</td>
+                  <td><b>${e(l.user_id || l.username || l.u || 'admin')}</b></td>
+                  <td><span class="user-badge" style="font-size:10px;">${e(l.action || 'UPDATE')}</span></td>
+                  <td style="color:var(--mu);max-width:320px;overflow:hidden;text-overflow:ellipsis;">${e(typeof l.details === 'object' ? JSON.stringify(l.details) : (l.details || l.c || ''))}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>`;
       } catch (err) {
-        toast(err.message || 'Role update failed.');
-      }
-    }
-    async function addNewUser() {
-      const u = ($('#nu_u')?.value || '').toLowerCase().trim();
-      const n = ($('#nu_n')?.value || '').trim();
-      const r = $('#nu_r')?.value || 'staff';
-      const p = $('#nu_p')?.value || '';
-      const errEl = $('#nu_err');
-
-      if (!u || u.length < 2) {
-        if (errEl) errEl.textContent = 'Username must be at least 2 characters.';
-        return;
-      }
-      if (!n) {
-        if (errEl) errEl.textContent = 'Please enter the user\'s full name.';
-        return;
-      }
-
-      try {
-        const created = await apiCall('/api/users', {
-          method: 'POST',
-          body: JSON.stringify({ username: u, full_name: n, role: r, password: p || undefined })
-        });
-
-        S.users[created.username] = {
-          n: created.full_name,
-          role: created.role,
-          has_password: created.has_password
-        };
-        saveLocalCache();
-        toast(`User ${created.full_name} (${created.username}) created successfully!`);
-        V.cust();
-      } catch (err) {
-        if (errEl) errEl.textContent = err.message;
-        toast(err.message);
-      }
-    }
-
-    async function resetUserPw(u) {
-      if (!await ask()) return;
-      try {
-        await apiCall('/api/users/reset-password', {
-          method: 'POST',
-          body: JSON.stringify({ username: u })
-        });
-        if (S.users[u]) S.users[u].has_password = false;
-        saveLocalCache();
-        toast(`Password cleared for ${u}. They will set a new one upon next login.`);
-        V.cust();
-      } catch (err) {
-        toast(err.message);
-      }
-    }
-
-    async function cmd() {
-      const c = $('#cm').value.trim();
-      if (!c) return;
-      if (/^help$/i.test(c)) {
-        $('#cr').innerHTML = HELP.join('<br>');
-        return;
-      }
-      const res = await run(c);
-      if (res) {
-        toast(res);
-        $('#cr').textContent = res;
-        V.cust();
-      } else {
-        $('#cr').textContent = 'Command not recognized. Type help for list of commands.';
+        container.innerHTML = `<p class="err" style="font-size:12px;padding:12px;">Failed to load audit logs: ${e(err.message)}</p>`;
       }
     }
 

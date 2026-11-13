@@ -47,41 +47,95 @@ const app = express();
 // Trust reverse proxy (Render, Cloudflare, etc.) for rate-limiting and HTTPS
 app.set('trust proxy', 1);
 
-// ── Security Headers — Permissive CSP so Brave Shields & Edge work seamlessly ──
+// ── HTTPS Redirection in Production ──────────────────────────
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.headers['x-forwarded-proto'] && req.headers['x-forwarded-proto'] !== 'https') {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+  });
+}
+
+// ── Security Headers (Helmet) ─────────────────────────────────
 app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: false,
-  originAgentCluster: false
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "https:", "http:", "blob:"],
+      connectSrc: ["'self'", "https://*.supabase.co", "https://*.onrender.com"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
+    }
+  },
+  frameguard: { action: 'deny' },
+  xContentTypeOptions: true,
+  dnsPrefetchControl: { allow: false },
+  hidePoweredBy: true,
+  hsts: process.env.NODE_ENV === 'production'
+    ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+    : false
 }));
 
 // ── Logging ──────────────────────────────────────────────────
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-// ── Permissive CORS (Chrome, Edge, Brave, Safari compatible) ──
+// ── Locked-down CORS (Restricts arbitrary origins while supporting Render & local dev) ──
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim().toLowerCase())
+  : ['https://harion-nagar-pharmacy.onrender.com'];
+
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // same-origin or server-to-server
+    const low = origin.toLowerCase();
+    if (allowedOrigins.includes(low) || low.endsWith('.onrender.com') || low.includes('localhost') || low.includes('127.0.0.1')) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS policy: Access denied for this origin.'));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+  maxAge: 86400
 }));
 
 // ── Body Parsing — strict 10 MB ceiling ──────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ── Rate Limiting ─────────────────────────────────────────────
+// ── Rate Limiting (Brute-Force & DoS Protection) ──────────────
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, max: 2000,
-  standardHeaders: true, legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' }
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down.' }
 });
+
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, max: 200,
-  standardHeaders: true, legacyHeaders: false,
-  message: { error: 'Too many login attempts. Please wait and try again.' }
+  windowMs: 15 * 60 * 1000,
+  max: 30, // 30 login attempts per 15 minutes per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please wait 15 minutes and try again.' }
 });
+
+const resetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 6, // 6 password reset requests per 15 minutes per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password reset requests. Please wait 15 minutes.' }
+});
+
 app.use('/api/', apiLimiter);
-app.use('/api/auth/', authLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/forgot-password', resetLimiter);
+app.use('/api/auth/reset-password', resetLimiter);
 
 // ============================================================
 //  SHARED HELPERS
@@ -113,10 +167,39 @@ const adminOnly = (req, res, next) => {
 const san = (v, max = 200) =>
   typeof v === 'string' ? validator.escape(v.trim()).slice(0, max) : '';
 
-/** Fire-and-forget audit log writer */
-const audit = async (username, description) => {
+/** Validate image URLs or Data URIs for QR uploads */
+const isValidImageUrl = (url) => {
+  if (typeof url !== 'string') return false;
+  const clean = url.trim();
+  if (clean.startsWith('data:image/')) {
+    return /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/.test(clean);
+  }
   try {
-    await supabase.from('audit_logs').insert({ username, description });
+    const parsed = new URL(clean);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+           /\.(png|jpg|jpeg|webp|svg)(\?.*)?$/i.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+};
+
+/** Audit log writer with local and cloud persistence */
+const audit = async (username, description) => {
+  const entry = {
+    id: 'log_' + Date.now() + Math.random().toString(36).substring(2, 6),
+    username: username || 'system',
+    description: san(description, 300),
+    created_at: new Date().toISOString()
+  };
+  try {
+    if (!Array.isArray(localDb.audit_logs)) localDb.audit_logs = [];
+    localDb.audit_logs.unshift(entry);
+    if (localDb.audit_logs.length > 300) localDb.audit_logs.length = 300;
+    saveLocalDb();
+  } catch (e) {}
+
+  try {
+    await supabase.from('audit_logs').insert({ username: entry.username, description: entry.description });
   } catch (err) {
     console.warn('Audit log write error:', err.message);
   }
@@ -311,8 +394,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString(), uptime: Math.floor(process.uptime()) });
 });
 
-/** GET /api/auth/users — Public list of user accounts with password setup status */
-app.get('/api/auth/users', async (req, res) => {
+/** GET /api/auth/users — Admin-only list of user accounts with password setup status */
+app.get('/api/auth/users', authenticate, adminOnly, async (req, res) => {
   try {
     let dbUsers = [];
     try {
@@ -1631,6 +1714,13 @@ app.post('/api/pharmacy/config', authenticate, adminOnly, async (req, res) => {
     if (updates.addr) updates.addr = san(updates.addr, 150);
     if (updates.pan) updates.pan = san(updates.pan, 30);
     if (updates.prefix) updates.prefix = san(updates.prefix, 10).toUpperCase();
+    if (updates.payment_qr_url) {
+      if (!isValidImageUrl(updates.payment_qr_url)) {
+        return res.status(400).json({ error: 'Invalid QR image format. Must be a valid image URL or data URI.' });
+      }
+      updates.payment_qr_url = san(updates.payment_qr_url, 500);
+    }
+    if (updates.payment_qr_label) updates.payment_qr_label = san(updates.payment_qr_label, 60);
     localDb.config = { ...localDb.config, ...updates };
     saveLocalDb();
     try { await supabase.from('config').upsert({ id: 1, ...localDb.config }, { onConflict: 'id' }); } catch(e){}
@@ -1694,7 +1784,7 @@ app.patch('/api/users/:username/email', authenticate, async (req, res) => {
 //  AUDIT LOGS
 // ============================================================
 
-app.get('/api/audit-logs', authenticate, adminOnly, async (req, res) => {
+app.get(['/api/audit-logs', '/api/admin/audit-logs'], authenticate, adminOnly, async (req, res) => {
   let dbLogs = [];
   try {
     const { data } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(50);
@@ -1717,9 +1807,13 @@ app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ── Global Error Handler ─────────────────────────────────────
+// ── Global Error Handler (Debug mode off in production) ──────
 app.use((err, req, res, _next) => {
-  console.error('Unhandled:', err.stack || err.message);
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('Unhandled server error:', err.stack || err.message);
+  } else {
+    console.error('Unhandled server error:', err.message);
+  }
   res.status(500).json({ error: 'Internal server error.' });
 });
 
