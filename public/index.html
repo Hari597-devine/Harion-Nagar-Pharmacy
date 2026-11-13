@@ -1910,7 +1910,19 @@
           step2.style.display = 'block';
           notice.textContent = res.message || 'Verification code dispatched to your registered address.';
           if (res.reset_token_preview) {
-            notice.innerHTML = `<strong>Verification Code:</strong> <span class="mono" style="font-size:15px;letter-spacing:2px;font-weight:700;">${e(res.reset_token_preview)}</span>`;
+            notice.innerHTML = `
+              <div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:6px;">6-Digit Verification Code:</div>
+              <div style="font-size:26px;font-weight:800;letter-spacing:6px;color:var(--ac);font-family:var(--mono);text-align:center;padding:10px 14px;background:rgba(255,255,255,0.85);border-radius:10px;border:2px dashed var(--ac);margin:6px 0;box-shadow:0 2px 8px var(--ac-glow);">
+                ${e(res.reset_token_preview)}
+              </div>
+              <p style="font-size:11px;color:var(--mu);margin:6px 0 0;line-height:1.4;">
+                ${res.deliveryNotice ? e(res.deliveryNotice) : 'Your verification code is ready. Enter this code below to set your new password:'}
+              </p>
+            `;
+            const codeInput = modal.querySelector('#reset_code');
+            if (codeInput) {
+              codeInput.value = res.reset_token_preview;
+            }
           }
           modal.querySelector('#reset_code').focus();
         } catch (e) {
@@ -2068,7 +2080,7 @@
     }
 
     class SystemCustomizationModule extends BaseViewModule {
-      constructor() { super('cust', 'Customize', ICONS.settings, { minRole: 'admin' }); }
+      constructor() { super('cust', 'Settings', ICONS.settings, { minRole: 'staff' }); }
       async render(container) { renderCustomizeView(container); }
     }
 
@@ -2184,8 +2196,11 @@
             <span>${e(S.cfg.name)}</span>
           </div>
           <div class="header-user">
-            <span>${e(currentUser.n || currentUser.username)}</span>
+            <span style="font-weight:600;">${e(currentUser.n || currentUser.username)}</span>
             <span class="user-badge">${e(currentUser.role)}</span>
+            <button class="g" style="color:#fff;border-color:rgba(255,255,255,0.3);padding:4px 8px;" onclick="go('cust')" title="Account Settings &amp; Password">
+              ${ICONS.settings}
+            </button>
             <button class="g" style="color:#fff;border-color:rgba(255,255,255,0.3);padding:4px 8px;" onclick="logout()" title="Logout">
               ${ICONS.logout}
             </button>
@@ -3692,24 +3707,97 @@
     }
 
     // ============================================================
-    //  TAB: CUSTOMIZE (Admin System Configuration)
-    // ============================================================
-    
-    // ============================================================
-    //  TAB: CUSTOMIZE (Admin System Configuration & Access Control)
+    //  TAB: CUSTOMIZE & SETTINGS (Account Security & Admin Controls)
     // ============================================================
     const _realCustView = (container) => {
       const g = S.cfg;
       const currentUser = S.users[U] ? { ...S.users[U], username: U } : { username: U, role: 'staff' };
       const isAdmin = currentUser.role === 'admin';
+      const userEmail = currentUser.email || (currentUser.username === 'admin' ? 'singhharishankar797@gmail.com' : '');
+
+      let html = `
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <!-- 0. User Profile & Password Change (Available to ALL users) -->
+          <div class="card" style="border-top:4px solid var(--ac);">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+              <h3 style="margin:0;display:flex;align-items:center;gap:8px;">${ICONS.lock} My Account &amp; Password Security</h3>
+              <span class="user-badge" style="background:var(--ac-light);color:var(--ac);font-weight:700;">Active Account: ${e(currentUser.username)}</span>
+            </div>
+            <p class="mu" style="margin-bottom:16px;font-size:13px;">
+              Manage your personal credentials, change your password, and maintain your recovery email for OTP password resets.
+            </p>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:20px;">
+              <!-- Change Password Form -->
+              <div style="background:rgba(255,255,255,0.45);backdrop-filter:blur(8px);border:1px solid var(--bd);border-radius:14px;padding:18px;">
+                <h4 style="font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;color:var(--tx);">
+                  ${ICONS.lock} Change My Password
+                </h4>
+                <label class="f" style="margin-bottom:8px;">
+                  <span style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;">Current Password</span>
+                  <div style="position:relative;margin-top:4px;">
+                    <input id="my_curr_pw" type="password" placeholder="Enter current password" style="width:100%;padding-right:40px;">
+                    <button type="button" onclick="togglePwdVis('my_curr_pw','eye_cpw')" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:2px;" title="Toggle"><span id="eye_cpw">${ICONS.eye}</span></button>
+                  </div>
+                </label>
+                <label class="f" style="margin-bottom:8px;">
+                  <span style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;">New Password (min 6 chars)</span>
+                  <div style="position:relative;margin-top:4px;">
+                    <input id="my_new_pw1" type="password" placeholder="Enter new password" style="width:100%;padding-right:40px;">
+                    <button type="button" onclick="togglePwdVis('my_new_pw1','eye_npw1')" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:2px;" title="Toggle"><span id="eye_npw1">${ICONS.eye}</span></button>
+                  </div>
+                </label>
+                <label class="f" style="margin-bottom:10px;">
+                  <span style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;">Confirm New Password</span>
+                  <div style="position:relative;margin-top:4px;">
+                    <input id="my_new_pw2" type="password" placeholder="Re-enter new password" style="width:100%;padding-right:40px;">
+                    <button type="button" onclick="togglePwdVis('my_new_pw2','eye_npw2')" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--mu);padding:2px;" title="Toggle"><span id="eye_npw2">${ICONS.eye}</span></button>
+                  </div>
+                </label>
+                <p class="err" id="my_pw_err" style="margin-bottom:8px;min-height:16px;font-size:11px;"></p>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <button id="my_pw_btn" onclick="changeMyPassword()" style="font-weight:700;padding:8px 16px;font-size:12px;">Update My Password</button>
+                  <span id="my_pw_ok" style="display:none;color:#16a34a;font-weight:600;font-size:12px;">✅ Password updated!</span>
+                </div>
+              </div>
+
+              <!-- Profile Details & Recovery Email -->
+              <div style="background:rgba(255,255,255,0.45);backdrop-filter:blur(8px);border:1px solid var(--bd);border-radius:14px;padding:18px;">
+                <h4 style="font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;color:var(--tx);">
+                  ${ICONS.box} Profile Details &amp; Recovery Email
+                </h4>
+                <div style="margin-bottom:14px;font-size:12px;display:flex;flex-direction:column;gap:4px;">
+                  <div><span class="mu">Username:</span> <b>${e(currentUser.username)}</b></div>
+                  <div><span class="mu">Full Name:</span> <b>${e(currentUser.n || currentUser.full_name || currentUser.username)}</b></div>
+                  <div><span class="mu">Account Role:</span> <span class="user-badge" style="font-size:10px;">${e(currentUser.role)}</span></div>
+                </div>
+                <label class="f" style="margin-bottom:10px;">
+                  <span style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;">Recovery Email (for OTP Password Resets)</span>
+                  <input id="my_recovery_email" type="email" value="${e(userEmail)}" placeholder="e.g. singhharishankar797@gmail.com" style="margin-top:4px;">
+                </label>
+                <p class="err" id="my_em_err" style="margin-bottom:8px;min-height:16px;font-size:11px;"></p>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <button onclick="updateMyRecoveryEmail()" style="font-weight:700;padding:8px 16px;font-size:12px;">Save Recovery Email</button>
+                  <span id="my_em_ok" style="display:none;color:#16a34a;font-weight:600;font-size:12px;">✅ Email saved!</span>
+                </div>
+              </div>
+            </div>
+          </div>
+      `;
 
       if (!isAdmin) {
-        new AccessRestrictedModule().render(container);
+        html += `
+          <div class="card" style="border-left:4px solid var(--mu);padding:18px;">
+            <p class="mu" style="font-size:13px;margin:0;">
+              🔒 <b>Staff Mode:</b> Advanced pharmacy configuration (VAT rates, payment QR codes, user accounts removal, and security audit logs) is accessible only to the Root Administrator.
+            </p>
+          </div>
+        </div>`;
+        container.innerHTML = html;
         return;
       }
 
-      container.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:20px;">
+      html += `
           <!-- 1. System Configuration & VAT -->
           <div class="card" style="border-top:4px solid var(--ac);">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
@@ -3782,14 +3870,40 @@
             </div>
           </div>
 
-          <!-- 3. User Role & Access Permission Matrix -->
+          <!-- 3. Email & SMTP Notification Server Settings -->
+          <div class="card" style="border-top:4px solid #06b6d4;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+              <h3 style="margin:0;display:flex;align-items:center;gap:8px;">${ICONS.lock} Email &amp; SMTP Server Settings (Gmail OTP Delivery)</h3>
+              <span class="user-badge" style="background:#ecfeff;color:#0891b2;">SMTP Notification Engine</span>
+            </div>
+            <p class="mu" style="font-size:13px;margin-bottom:14px;">
+              Configure Gmail SMTP credentials so password reset OTP verification codes are delivered directly to user emails. For Gmail, use an <b>App Password</b> (Google Account &rarr; Security &rarr; 2-Step Verification &rarr; App Passwords).
+            </p>
+            <div class="row" style="gap:12px;flex-wrap:wrap;">
+              <label class="f"><span style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;">SMTP Host</span><input id="cfg_smtp_host" value="${e(g.smtp_host || 'smtp.gmail.com')}" style="margin-top:4px;"></label>
+              <label class="f" style="max-width:90px;"><span style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;">Port</span><input id="cfg_smtp_port" type="number" value="${g.smtp_port || 587}" style="margin-top:4px;"></label>
+              <label class="f w"><span style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;">SMTP User / Email Address</span><input id="cfg_smtp_user" value="${e(g.smtp_user || '')}" placeholder="e.g. singhharishankar797@gmail.com" style="margin-top:4px;"></label>
+              <label class="f w"><span style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;">SMTP Password / Gmail App Password (16 chars)</span><input id="cfg_smtp_pass" type="password" value="${e(g.smtp_pass || '')}" placeholder="e.g. abcd efgh ijkl mnop" style="margin-top:4px;"></label>
+            </div>
+            <div class="row" style="gap:12px;flex-wrap:wrap;margin-top:6px;">
+              <label class="f w"><span style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;">Sender From Name / Address</span><input id="cfg_smtp_from" value="${e(g.smtp_from || '')}" placeholder="&quot;Harion Nagar Pharmacy&quot; &lt;your-email@gmail.com&gt;" style="margin-top:4px;"></label>
+            </div>
+            <p class="err" id="smtp_err" style="margin-top:8px;"></p>
+            <div style="margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+              <button onclick="saveSMTP()" style="font-weight:700;">${ICONS.save} Save SMTP Credentials</button>
+              <button class="g" onclick="testSMTP()" style="font-weight:600;">📧 Send Test Verification Email</button>
+              <span id="smtp_ok" style="display:none;color:#16a34a;font-weight:600;font-size:13px;">Saved successfully!</span>
+            </div>
+          </div>
+
+          <!-- 4. User Role & Access Permission Matrix -->
           <div class="card" style="border-top:4px solid #8b5cf6;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
               <h3 style="margin:0;display:flex;align-items:center;gap:8px;">${ICONS.settings} User Access &amp; Permission Controls</h3>
               <span class="user-badge">Role-Based Access Control</span>
             </div>
             <p class="mu" style="font-size:13px;margin-bottom:14px;">
-              Root and Administrators can grant or revoke specific module access (POS Billing, Stock Management, Graphical Dashboard, Stock Purchases) for staff members.
+              Root and Administrators can grant or revoke module access, reset passwords, or permanently remove staff accounts from the system.
             </p>
             <div style="overflow-x:auto;">
               <table style="font-size:12px;">
@@ -3806,12 +3920,13 @@
                 </tr>
                 ${Object.entries(S.users || {}).map(([u, d]) => {
                   const perm = d.permissions || {};
-                  const isRoot = (u === U && d.role === 'admin');
-                  const dis = isRoot ? 'disabled' : '';
+                  const isRoot = (u === 'admin' || d.email === 'singhharishankar797@gmail.com');
+                  const isCurrent = (u === U);
+                  const dis = (isRoot || isCurrent) ? 'disabled' : '';
                   return `
                   <tr>
                     <td><b>${e(u)}</b></td>
-                    <td>${e(d.n || u)}</td>
+                    <td>${e(d.n || d.full_name || u)}</td>
                     <td class="mu">${e(d.email || '—')}</td>
                     <td>
                       <select id="role_${u}" style="font-size:11px;padding:3px 6px;" ${dis}>
@@ -3824,10 +3939,11 @@
                     <td style="text-align:center;"><input type="checkbox" id="perm_dash_${u}" ${perm.dashboard !== false ? 'checked' : ''} ${dis}></td>
                     <td style="text-align:center;"><input type="checkbox" id="perm_purch_${u}" ${perm.purchases !== false ? 'checked' : ''} ${dis}></td>
                     <td>
-                      ${!isRoot ? `
-                        <button class="g" style="padding:3px 10px;font-size:11px;font-weight:600;" onclick="saveUserRole('${u}')">Save</button>
-                        <button class="g" style="padding:3px 8px;font-size:11px;margin-left:4px;" onclick="resetUserPw('${u}')">Reset Pwd</button>
-                      ` : '<span class="mu" style="font-size:11px;">Current User</span>'}
+                      ${!isRoot && !isCurrent ? `
+                        <button class="g" style="padding:4px 8px;font-size:11px;font-weight:600;" onclick="saveUserRole('${u}')">Save</button>
+                        <button class="g" style="padding:4px 8px;font-size:11px;margin-left:4px;" onclick="resetUserPw('${u}')">Reset</button>
+                        <button class="danger" style="padding:4px 8px;font-size:11px;margin-left:4px;border-radius:6px;" onclick="deleteUser('${u}')" title="Permanently delete user account">Remove</button>
+                      ` : (isRoot ? '<span class="user-badge" style="background:var(--ac-light);color:var(--ac);font-size:10px;">Root Admin</span>' : '<span class="mu" style="font-size:11px;">Current User</span>')}
                     </td>
                   </tr>`;
                 }).join('')}
@@ -3835,21 +3951,22 @@
             </div>
           </div>
 
-          <!-- 4. Register New Staff / Admin Account -->
+          <!-- 5. Register New Staff / Admin Account -->
           <div class="card" style="border-top:4px solid #10b981;">
             <h3 style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">${ICONS.plus} Register New Staff or Admin Account</h3>
             <p class="mu" style="font-size:13px;margin-bottom:12px;">Create credential accounts manually or have staff sign in directly via Google.</p>
             <div class="row" style="gap:12px;flex-wrap:wrap;">
               <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Username (ID)</span><input id="nu_u" placeholder="e.g. nurse1" style="margin-top:4px;"></label>
               <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Full Name</span><input id="nu_n" placeholder="e.g. Sita Mahato" style="margin-top:4px;"></label>
+              <label class="f w"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Email</span><input id="nu_e" type="email" placeholder="e.g. sita@gmail.com" style="margin-top:4px;"></label>
               <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Role</span><select id="nu_r" style="margin-top:4px;"><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
-              <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Initial Password (Optional)</span><input id="nu_p" type="password" placeholder="Leave empty for prompt" style="margin-top:4px;"></label>
+              <label class="f"><span style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;">Initial Password</span><input id="nu_p" type="password" placeholder="Leave empty for prompt" style="margin-top:4px;"></label>
               <button onclick="addNewUser()" style="align-self:flex-end;font-weight:700;">${ICONS.plus} Create User</button>
             </div>
             <p class="err" id="nu_err" style="margin-top:8px;"></p>
           </div>
 
-          <!-- 5. Live Administrative Security Audit Log -->
+          <!-- 6. Live Administrative Security Audit Log -->
           <div class="card" style="border-top:4px solid #f59e0b;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
               <h3 style="margin:0;display:flex;align-items:center;gap:8px;">${ICONS.list} Security Audit Log (Tamper-Resistant)</h3>
@@ -3861,6 +3978,7 @@
         </div>
       `;
 
+      container.innerHTML = html;
       loadAuditLogs();
     };
 
@@ -4021,6 +4139,123 @@
         V.cust();
       } catch (err) {
         toast(err.message);
+      }
+    }
+
+    async function changeMyPassword() {
+      const curr = document.getElementById('my_curr_pw')?.value || '';
+      const p1 = document.getElementById('my_new_pw1')?.value || '';
+      const p2 = document.getElementById('my_new_pw2')?.value || '';
+      const err = document.getElementById('my_pw_err');
+      const ok = document.getElementById('my_pw_ok');
+      const btn = document.getElementById('my_pw_btn');
+
+      if (!p1 || p1.length < 6) {
+        if (err) err.textContent = 'New password must be at least 6 characters.';
+        return;
+      }
+      if (p1 !== p2) {
+        if (err) err.textContent = 'New passwords do not match.';
+        return;
+      }
+
+      if (err) err.textContent = '';
+      if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
+
+      try {
+        const res = await apiCall('/api/users/change-password', {
+          method: 'POST',
+          body: JSON.stringify({ current_password: curr, new_password: p1 })
+        });
+        if (ok) { ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 4000); }
+        toast(res.message || 'Password updated successfully!');
+        if (document.getElementById('my_curr_pw')) document.getElementById('my_curr_pw').value = '';
+        if (document.getElementById('my_new_pw1')) document.getElementById('my_new_pw1').value = '';
+        if (document.getElementById('my_new_pw2')) document.getElementById('my_new_pw2').value = '';
+      } catch (e) {
+        if (err) err.textContent = e.message || 'Failed to update password.';
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Update My Password'; }
+      }
+    }
+
+    async function updateMyRecoveryEmail() {
+      const email = document.getElementById('my_recovery_email')?.value.trim();
+      const err = document.getElementById('my_em_err');
+      const ok = document.getElementById('my_em_ok');
+      if (!email || !email.includes('@')) {
+        if (err) err.textContent = 'Please enter a valid email address.';
+        return;
+      }
+      if (err) err.textContent = '';
+      try {
+        await apiCall('/api/users/' + encodeURIComponent(U) + '/email', {
+          method: 'PATCH',
+          body: JSON.stringify({ email })
+        });
+        if (S.users[U]) S.users[U].email = email;
+        saveLocalCache();
+        if (ok) { ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 3000); }
+        toast('Recovery email updated successfully!');
+      } catch (e) {
+        if (err) err.textContent = e.message || 'Failed to update recovery email.';
+      }
+    }
+
+    async function deleteUser(username) {
+      if (!confirm(`Are you sure you want to permanently remove user account '${username}'? This cannot be undone.`)) return;
+      try {
+        const res = await apiCall('/api/users/' + encodeURIComponent(username), { method: 'DELETE' });
+        toast(res.message || `User '${username}' removed.`);
+        delete S.users[username];
+        saveLocalCache();
+        V.cust();
+      } catch (err) {
+        alert(err.message || 'Failed to remove user.');
+      }
+    }
+
+    async function saveSMTP() {
+      const host = document.getElementById('cfg_smtp_host')?.value.trim() || 'smtp.gmail.com';
+      const port = parseInt(document.getElementById('cfg_smtp_port')?.value, 10) || 587;
+      const user = document.getElementById('cfg_smtp_user')?.value.trim() || '';
+      const pass = document.getElementById('cfg_smtp_pass')?.value.trim() || '';
+      const from = document.getElementById('cfg_smtp_from')?.value.trim() || '';
+      const err = document.getElementById('smtp_err');
+      const ok = document.getElementById('smtp_ok');
+
+      try {
+        const res = await apiCall('/api/pharmacy/config', {
+          method: 'POST',
+          body: JSON.stringify({
+            smtp_host: host,
+            smtp_port: port,
+            smtp_user: user,
+            smtp_pass: pass,
+            smtp_from: from
+          })
+        });
+        S.cfg = { ...S.cfg, ...(res.config || {}) };
+        saveLocalCache();
+        if (ok) { ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 3000); }
+        toast('SMTP server settings saved successfully!');
+      } catch (e) {
+        if (err) err.textContent = e.message || 'Failed to save SMTP settings.';
+      }
+    }
+
+    async function testSMTP() {
+      const err = document.getElementById('smtp_err');
+      const ok = document.getElementById('smtp_ok');
+      if (err) err.textContent = '';
+      toast('Sending test verification email…');
+      try {
+        const res = await apiCall('/api/pharmacy/test-smtp', { method: 'POST', body: JSON.stringify({}) });
+        toast(res.message || 'Test email sent successfully!');
+        if (ok) { ok.textContent = 'Test email dispatched!'; ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 4000); }
+      } catch (e) {
+        if (err) err.textContent = e.message || 'Test email failed.';
+        alert(e.message || 'Failed to send test email.');
       }
     }
 

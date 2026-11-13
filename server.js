@@ -235,7 +235,13 @@ const OTP_STORE = new Map();
 
 // Helper to send email OTP (or fall back gracefully to server log / console)
 const sendPasswordResetEmail = async (toEmail, otpCode, username) => {
-  const hasSmtp = Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
+  const smtpUser = process.env.SMTP_USER || localDb.config?.smtp_user;
+  const smtpPass = process.env.SMTP_PASS || localDb.config?.smtp_pass;
+  const smtpHost = process.env.SMTP_HOST || localDb.config?.smtp_host || 'smtp.gmail.com';
+  const smtpPort = parseInt(process.env.SMTP_PORT || localDb.config?.smtp_port || '587', 10);
+  const smtpSecure = (process.env.SMTP_SECURE || localDb.config?.smtp_secure) === 'true';
+  const hasSmtp = Boolean(smtpUser && smtpPass);
+
   const subject = '🔐 Password Reset Verification Code - Harion Nagar Pharmacy';
   const textBody = `Hello ${username || 'User'},\n\nYour 6-digit verification code to reset your password is:\n\n${otpCode}\n\nThis code is valid for 15 minutes. If you did not request this, please ignore this email.\n\nHarion Nagar Hospital & Pharmacy Inventory System\nHarion-4, Sasapur, Sarlahi`;
   const htmlBody = `
@@ -260,17 +266,17 @@ const sendPasswordResetEmail = async (toEmail, otpCode, username) => {
   if (hasSmtp) {
     try {
       const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587', 10),
-        secure: process.env.SMTP_SECURE === 'true',
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpSecure,
         auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
+          user: smtpUser,
+          pass: smtpPass
         }
       });
 
       await transporter.sendMail({
-        from: process.env.SMTP_FROM || `"Harion Nagar Pharmacy" <${process.env.SMTP_USER}>`,
+        from: process.env.SMTP_FROM || localDb.config?.smtp_from || `"Harion Nagar Pharmacy" <${smtpUser}>`,
         to: toEmail,
         subject,
         text: textBody,
@@ -280,12 +286,12 @@ const sendPasswordResetEmail = async (toEmail, otpCode, username) => {
       return { sent: true, mode: 'smtp' };
     } catch (smtpErr) {
       console.error('[SMTP Error] Failed to send email via SMTP:', smtpErr.message);
-      // Fallback to local dev return
+      // Fallback to preview code
       return { sent: false, mode: 'fallback', code: otpCode, error: smtpErr.message };
     }
   } else {
     console.log(`[AUTH NOTICE] SMTP is not configured. Verification code for ${toEmail} (${username}): ${otpCode}`);
-    return { sent: true, mode: 'local_preview', code: otpCode };
+    return { sent: false, mode: 'local_preview', code: otpCode };
   }
 };
 
@@ -357,6 +363,23 @@ if (localDb.users) {
     if (localDb.users[legacy] && !localDb.users[legacy].google_id && !localDb.users[legacy].password_hash) {
       delete localDb.users[legacy];
     }
+  }
+}
+
+// Seed / ensure root admin user exists with email singhharishankar797@gmail.com
+if (!localDb.users) localDb.users = {};
+if (!localDb.users['admin']) {
+  localDb.users['admin'] = {
+    username: 'admin',
+    full_name: 'Hari Shankar Mahato',
+    email: 'singhharishankar797@gmail.com',
+    role: 'admin',
+    password_hash: '$2a$12$lpst3VEtH2kox35TFD.WSuxH/pu9NYhUrioF6bXu9NwmiunkJSrLW',
+    permissions: { pos: true, stock: true, dashboard: true, purchases: true, reports: true, returns: true, adj: true, settings: true }
+  };
+} else {
+  if (!localDb.users['admin'].email) {
+    localDb.users['admin'].email = 'singhharishankar797@gmail.com';
   }
 }
 
@@ -844,12 +867,24 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     const [eName, eDomain] = targetEmail.split('@');
     const masked = eName.length <= 2 ? `${eName[0]}*@${eDomain}` : `${eName[0]}${'*'.repeat(eName.length - 2)}${eName.slice(-1)}@${eDomain}`;
 
-    res.json({
+    const resObj = {
       success: true,
-      message: `A 6-digit verification code has been sent to ${masked}.`,
+      message: (mailResult.sent && mailResult.mode === 'smtp')
+        ? `A 6-digit verification code has been dispatched to ${masked}. Please check your inbox (and spam folder).`
+        : `A 6-digit verification code was generated for ${masked}.`,
       emailMasked: masked,
       username: targetUsername
-    });
+    };
+
+    // If SMTP failed or is not configured, deliver the preview code directly so the user is NEVER stuck
+    if (!mailResult.sent || mailResult.mode !== 'smtp' || mailResult.code) {
+      resObj.reset_token_preview = otpCode;
+      resObj.deliveryNotice = mailResult.error
+        ? `SMTP Error (${mailResult.error}). Your verification code is provided directly below:`
+        : 'SMTP email server is not configured. Your 6-digit verification code is provided directly below:';
+    }
+
+    res.json(resObj);
   } catch (err) {
     console.error('Forgot-password error:', err);
     res.status(500).json({ error: 'An unexpected error occurred. Please try again.' });
@@ -902,10 +937,9 @@ app.post('/api/auth/reset-password', async (req, res) => {
     saveLocalDb();
 
     try {
-      await supabase.from('users').upsert({
-        username: cleanUsername,
+      await supabase.from('users').update({
         password_hash: hash
-      }, { onConflict: 'username' });
+      }).eq('username', cleanUsername);
     } catch (e) {}
 
     // Invalidate OTP
@@ -939,7 +973,7 @@ app.get('/api/pharmacy/state', authenticate, async (req, res) => {
         supabase.from('config').select('*').eq('id', 1).maybeSingle(),
         supabase.from('medicines').select('*').order('name'),
         supabase.from('stock').select('*').order('medicine_name'),
-        supabase.from('users').select('username, full_name, role, password_hash').order('username')
+        supabase.from('users').select('username, full_name, role, password_hash, email').order('username')
       ]);
       cfgData = cfgR?.data;
       if (Array.isArray(medsR?.data)) medsData = medsR.data;
@@ -1772,19 +1806,19 @@ app.put('/api/config', authenticate, adminOnly, async (req, res) => {
 });
 
 // ============================================================
-//  USERS  (admin-only management)
+//  USERS  (admin-only management & self-service password)
 // ============================================================
 
 app.get('/api/users', authenticate, adminOnly, async (req, res) => {
   let dbUsers = [];
   try {
-    const { data } = await supabase.from('users').select('username, full_name, role, password_hash').order('username');
+    const { data } = await supabase.from('users').select('username, full_name, role, password_hash, email').order('username');
     if (Array.isArray(data)) dbUsers = data;
   } catch (e) {}
 
   const map = new Map();
   for (const [u, d] of Object.entries(localDb.users)) {
-    map.set(u, { username: u, full_name: d.full_name, role: d.role, has_password: !!d.password_hash });
+    map.set(u, { username: u, full_name: d.full_name, role: d.role, email: d.email || '', has_password: !!d.password_hash });
   }
   for (const u of dbUsers) {
     const existing = map.get(u.username);
@@ -1792,10 +1826,117 @@ app.get('/api/users', authenticate, adminOnly, async (req, res) => {
       username: u.username,
       full_name: u.full_name || existing?.full_name || u.username.toUpperCase(),
       role: u.role || existing?.role || 'staff',
+      email: u.email || existing?.email || '',
       has_password: !!(u.password_hash || existing?.has_password)
     });
   }
   res.json(Array.from(map.values()));
+});
+
+/** POST /api/users/change-password — Any authenticated user can change their own password */
+app.post('/api/users/change-password', authenticate, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!new_password || typeof new_password !== 'string' || new_password.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+    }
+
+    const username = req.user.username.toLowerCase().trim();
+    let userObj = localDb.users[username];
+
+    // If not in localDb, check Supabase
+    if (!userObj) {
+      try {
+        const { data } = await supabase.from('users').select('*').eq('username', username).maybeSingle();
+        if (data) {
+          userObj = data;
+          localDb.users[username] = data;
+        }
+      } catch (e) {}
+    }
+
+    // Verify current password if user already has a password set
+    const existingHash = userObj?.password_hash;
+    if (existingHash) {
+      if (!current_password) {
+        return res.status(400).json({ error: 'Current password is required to verify identity.' });
+      }
+      const isMatch = await bcrypt.compare(current_password, existingHash);
+      if (!isMatch) {
+        return res.status(400).json({ error: 'Incorrect current password. Please try again.' });
+      }
+    }
+
+    // Hash new password
+    const newHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS);
+
+    if (localDb.users[username]) {
+      localDb.users[username].password_hash = newHash;
+    } else {
+      localDb.users[username] = {
+        username,
+        full_name: req.user.fullName || username,
+        role: req.user.role || 'staff',
+        email: req.user.email || '',
+        password_hash: newHash
+      };
+    }
+    saveLocalDb();
+
+    // Persist to Supabase
+    try {
+      await supabase.from('users').update({ password_hash: newHash }).eq('username', username);
+    } catch (e) {
+      console.warn('Supabase password update notice:', e.message);
+    }
+
+    audit(username, 'User changed their password in Settings.');
+    res.json({ success: true, message: 'Password updated successfully! Use your new password on next login.' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ error: 'Failed to update password. Please try again.' });
+  }
+});
+
+/** DELETE /api/users/:username — Root user and admin can remove non-root users */
+app.delete('/api/users/:username', authenticate, adminOnly, async (req, res) => {
+  try {
+    const target = req.params.username.toLowerCase().trim();
+    const caller = req.user.username.toLowerCase().trim();
+
+    // Prevent removing root admin
+    if (target === 'admin') {
+      return res.status(403).json({ error: 'Cannot remove the primary Root Admin account.' });
+    }
+    if (target === caller) {
+      return res.status(400).json({ error: 'Cannot remove your own active account.' });
+    }
+
+    // Also check if user has root email
+    const targetEmail = localDb.users[target]?.email || '';
+    if (targetEmail.toLowerCase() === 'singhharishankar797@gmail.com') {
+      return res.status(403).json({ error: 'Cannot remove the account registered to the Root Administrator email.' });
+    }
+
+    // Delete locally
+    if (localDb.users[target]) {
+      delete localDb.users[target];
+      saveLocalDb();
+    }
+
+    // Delete from Supabase
+    try {
+      await supabase.from('users').delete().eq('username', target);
+    } catch (e) {
+      console.warn('Supabase delete user notice:', e.message);
+    }
+
+    audit(req.user.username, `Permanently removed user account: ${target}`);
+    res.json({ success: true, message: `User account '${target}' has been successfully removed.` });
+  } catch (err) {
+    console.error('Delete user error:', err);
+    res.status(500).json({ error: 'Failed to delete user.' });
+  }
 });
 
 app.post('/api/users', authenticate, adminOnly, async (req, res) => {
@@ -1871,7 +2012,8 @@ app.post('/api/pharmacy/config', authenticate, adminOnly, async (req, res) => {
   try {
     const allowed = ['name','addr','pan','prefix','vat','footer1','footer2','expiry_days',
                      'low_stock_level','returns_enabled','discount_enabled','adj_password',
-                     'auto_print','accent','payment_qr_url','payment_qr_label'];
+                     'auto_print','accent','payment_qr_url','payment_qr_label',
+                     'smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure'];
     const updates = {};
     for (const k of allowed) {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
@@ -1897,6 +2039,24 @@ app.post('/api/pharmacy/config', authenticate, adminOnly, async (req, res) => {
     res.json({ success: true, config: localDb.config });
   } catch(err) {
     res.status(500).json({ error: 'Config update failed.' });
+  }
+});
+
+/** POST /api/pharmacy/test-smtp — Send a test email to verify SMTP configuration */
+app.post('/api/pharmacy/test-smtp', authenticate, adminOnly, async (req, res) => {
+  try {
+    const testTo = req.body.to_email || req.user.email || 'singhharishankar797@gmail.com';
+    const testResult = await sendPasswordResetEmail(testTo, '123456', req.user.fullName || 'Admin');
+    if (testResult.sent && testResult.mode === 'smtp') {
+      res.json({ success: true, message: `Test verification email sent successfully to ${testTo} via SMTP!` });
+    } else {
+      res.status(400).json({
+        error: testResult.error || 'SMTP delivery failed. Check your SMTP User and Gmail App Password.',
+        details: testResult
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'SMTP test failed.' });
   }
 });
 
