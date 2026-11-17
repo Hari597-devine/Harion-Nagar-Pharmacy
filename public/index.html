@@ -1151,8 +1151,7 @@
         const res = await apiCall('/api/auth/google', {
           method: 'POST',
           body: JSON.stringify({
-            credential: response.credential,
-            clientId: GOOGLE_CLIENT_ID
+            credential: response.credential
           })
         });
 

@@ -509,10 +509,13 @@ app.get('/api/auth/users', authenticate, adminOnly, async (req, res) => {
 });
 
 
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '880560555970-neuabavd9cr5ca4n8t2kd3mltv4p7aeb.apps.googleusercontent.com';
 const googleClient = new OAuth2Client();
 
-async function verifyGoogleIdToken(token, clientOverrideId) {
-  const expectedAud = clientOverrideId || GOOGLE_CLIENT_ID || undefined;
+async function verifyGoogleIdToken(token) {
+  const expectedAud = process.env.GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID;
+  if (!expectedAud) throw new Error('GOOGLE_CLIENT_ID is not configured.');
+
   // 1. Try OAuth2Client
   try {
     const ticket = await googleClient.verifyIdToken({
@@ -532,8 +535,8 @@ async function verifyGoogleIdToken(token, clientOverrideId) {
         res.on('end', () => {
           try {
             const parsed = JSON.parse(data);
-            if (res.statusCode === 200 && parsed.email) resolve(parsed);
-            else reject(new Error(parsed.error_description || 'Invalid token'));
+            if (res.statusCode === 200 && parsed.email && parsed.aud === expectedAud) resolve(parsed);
+            else reject(new Error(parsed.error_description || 'Invalid token or audience mismatch'));
           } catch (err) { reject(err); }
         });
       });
@@ -543,21 +546,8 @@ async function verifyGoogleIdToken(token, clientOverrideId) {
     if (info && info.email) return info;
   } catch (e) {}
 
-  // 3. Fallback: parse JWT payload for development/fallback
-  const parts = token.split('.');
-  if (parts.length === 3) {
-    try {
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-      if (payload && payload.email) return payload;
-    } catch (e) {}
-  }
   throw new Error('Unable to verify Google credential token.');
 }
-
-/** POST /api/auth/login — Secure IAM-compliant login with bcrypt verification */
-
-
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '880560555970-neuabavd9cr5ca4n8t2kd3mltv4p7aeb.apps.googleusercontent.com';
 
 /** GET /api/auth/config — Public endpoint to serve auth configuration to frontend */
 app.get('/api/auth/config', (req, res) => {
@@ -571,12 +561,12 @@ app.get('/api/auth/config', (req, res) => {
 /** POST /api/auth/google — Secure Google Sign-In verification & user provisioning */
 app.post('/api/auth/google', authLimiter, async (req, res) => {
   try {
-    const { credential, clientId } = req.body;
+    const { credential } = req.body;
     if (!credential) {
       return res.status(400).json({ error: 'Google credential ID token is required.' });
     }
 
-    const payload = await verifyGoogleIdToken(credential, clientId);
+    const payload = await verifyGoogleIdToken(credential);
     const email = (payload.email || '').toLowerCase().trim();
     if (!email || !validator.isEmail(email)) {
       return res.status(400).json({ error: 'A valid email was not returned by Google.' });
@@ -593,22 +583,22 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
     let targetUsername = email.split('@')[0].replace(/[^a-z0-9_]/g, '_');
     let foundUser = null;
 
-    // Search by email, google_id, or username in localDb
+    // Search strictly by email or google_id in localDb (never by derived username)
     for (const [u, d] of Object.entries(localDb.users || {})) {
-      if ((d.email && d.email.toLowerCase() === email) || (d.google_id && d.google_id === googleId) || u === targetUsername) {
+      if ((d.email && d.email.toLowerCase() === email) || (d.google_id && d.google_id === googleId)) {
         foundUser = d;
         targetUsername = u;
         break;
       }
     }
 
-    // Fallback: search Supabase
+    // Fallback: search Supabase strictly by email
     if (!foundUser) {
       try {
         const { data } = await supabase
           .from('users')
           .select('*')
-          .or(`email.eq.${email},username.eq.${targetUsername}`)
+          .eq('email', email)
           .maybeSingle();
         if (data) {
           foundUser = data;
@@ -623,6 +613,34 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
     if (!foundUser) {
       isNewUser = true;
       role = isFirstUser ? 'admin' : 'staff';
+
+      // Ensure targetUsername does not collide with existing usernames in localDb or Supabase
+      let candidateUsername = targetUsername;
+      let suffix = 1;
+
+      // Check localDb collisions
+      while (localDb.users && localDb.users[candidateUsername]) {
+        candidateUsername = `${targetUsername}_${suffix++}`;
+      }
+
+      // Check Supabase collisions
+      try {
+        while (true) {
+          const { data: existingDbUser } = await supabase
+            .from('users')
+            .select('username')
+            .eq('username', candidateUsername)
+            .maybeSingle();
+          if (!existingDbUser) break;
+          candidateUsername = `${targetUsername}_${suffix++}`;
+          while (localDb.users && localDb.users[candidateUsername]) {
+            candidateUsername = `${targetUsername}_${suffix++}`;
+          }
+        }
+      } catch (e) {}
+
+      targetUsername = candidateUsername;
+
       const newUser = {
         username: targetUsername,
         email,
@@ -647,7 +665,7 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
           full_name: fullName,
           role,
           created_at: new Date().toISOString()
-        });
+        }, { onConflict: 'username' });
       } catch (e) {}
 
       audit(targetUsername, 'New user registered via Google Sign-In (role: ' + role + ').');
