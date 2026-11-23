@@ -50,13 +50,6 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
----
-
-## 📋 Default Credentials
-- **Admin**: `rd` (Ram Dular Mahato) — Prompts to create secure password on first login.
-- **Staff**: `rs` (Ramesh Singh) — Prompts to create secure password on first login.
-
----
 
 ## 🌐 Deploy Free to Render.com
 1. Push repository to GitHub or GitLab.
