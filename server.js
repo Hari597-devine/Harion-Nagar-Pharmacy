@@ -140,8 +140,11 @@ const resetLimiter = rateLimit({
 
 app.use('/api/', apiLimiter);
 app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/set-password', authLimiter);
 app.use('/api/auth/forgot-password', resetLimiter);
 app.use('/api/auth/reset-password', resetLimiter);
+app.use('/api/users/change-password', authLimiter);
+app.use('/api/pharmacy/test-smtp', resetLimiter);
 
 // ============================================================
 //  SHARED HELPERS
@@ -728,15 +731,27 @@ app.post('/api/auth/login', async (req, res) => {
       foundUser = DEFAULT_USERS[cleanUsername];
     }
 
-    // 3. Try Supabase
+    // 3. Try Supabase with safe query parameters (immune to PostgREST filter injection)
     let dbUser = null;
     try {
-      const { data } = await supabase
-        .from('users')
-        .select('username, full_name, role, password_hash, email')
-        .or(`username.eq.${cleanUsername},email.eq.${inputIdentifier}`)
-        .maybeSingle();
-      if (data) dbUser = data;
+      if (validator.isEmail(inputRaw)) {
+        const { data } = await supabase
+          .from('users')
+          .select('username, full_name, role, password_hash, email')
+          .eq('email', inputRaw)
+          .maybeSingle();
+        if (data) dbUser = data;
+      } else {
+        const safeUsername = inputRaw.replace(/[^a-z0-9_]/g, '');
+        if (safeUsername) {
+          const { data } = await supabase
+            .from('users')
+            .select('username, full_name, role, password_hash, email')
+            .eq('username', safeUsername)
+            .maybeSingle();
+          if (data) dbUser = data;
+        }
+      }
     } catch (e) {}
 
     const resolvedUser = dbUser || foundUser;
@@ -803,14 +818,32 @@ app.post('/api/auth/set-password', async (req, res) => {
       return res.status(400).json({ error: 'Username is required.' });
     }
 
-    const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-    const isFirstUser = Object.keys(localDb.users || {}).length === 0;
-    const assignedRole = isFirstUser ? 'admin' : 'staff';
+    // Defensive Check: System state & existing user protections
+    const existingUsers = Object.keys(localDb.users || {});
+    const isFirstUser = existingUsers.length === 0;
+    const existingUser = localDb.users[cleanUsername];
 
-    if (localDb.users[cleanUsername]) {
-      localDb.users[cleanUsername].password_hash = hash;
-      if (cleanEmail) localDb.users[cleanUsername].email = cleanEmail;
-      if (isFirstUser) localDb.users[cleanUsername].role = 'admin';
+    // CRITICAL: Prevent unauthorized password overwrite if user already has a password set
+    if (existingUser && existingUser.password_hash) {
+      return res.status(400).json({
+        error: 'Password has already been set for this account. Please log in or use Forgot Password to reset.'
+      });
+    }
+
+    // Prevent arbitrary registration when system is already seeded with users
+    if (!isFirstUser && !existingUser) {
+      return res.status(403).json({
+        error: 'Direct user creation is restricted. Please contact your administrator.'
+      });
+    }
+
+    const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const assignedRole = isFirstUser ? 'admin' : (existingUser?.role || 'staff');
+
+    if (existingUser) {
+      existingUser.password_hash = hash;
+      if (cleanEmail) existingUser.email = cleanEmail;
+      if (isFirstUser) existingUser.role = 'admin';
     } else {
       localDb.users[cleanUsername] = {
         username: cleanUsername,
@@ -887,18 +920,32 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       }
     }
 
-    // 2. Search Supabase if not found or email missing
+    // 2. Search Supabase safely if not found or email missing (prevents PostgREST filter injection)
     if (!targetEmail) {
       try {
-        const { data } = await supabase
-          .from('users')
-          .select('username, email, full_name, role')
-          .or(`username.eq.${cleanId},email.eq.${cleanId}`)
-          .maybeSingle();
-        if (data) {
-          targetUsername = data.username;
-          targetEmail = data.email || targetEmail;
-          targetUser = data;
+        let dbData = null;
+        if (validator.isEmail(cleanId)) {
+          const { data } = await supabase
+            .from('users')
+            .select('username, email, full_name, role')
+            .eq('email', cleanId)
+            .maybeSingle();
+          dbData = data;
+        } else {
+          const safeUser = cleanId.replace(/[^a-z0-9_]/g, '');
+          if (safeUser) {
+            const { data } = await supabase
+              .from('users')
+              .select('username, email, full_name, role')
+              .eq('username', safeUser)
+              .maybeSingle();
+            dbData = data;
+          }
+        }
+        if (dbData) {
+          targetUsername = dbData.username;
+          targetEmail = dbData.email || targetEmail;
+          targetUser = dbData;
         }
       } catch (e) {}
     }
